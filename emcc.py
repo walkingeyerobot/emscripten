@@ -2215,16 +2215,15 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
   with ToolchainProfiler.profile_block('calculate system libraries'):
     # link in ports and system libraries, if necessary
-    if not shared.Settings.SIDE_MODULE: # shared libraries/side modules link no C libraries, need them in parent
-      extra_files_to_link = system_libs.get_ports(shared.Settings)
-      if '-nostdlib' not in newargs and '-nodefaultlibs' not in newargs:
-        link_as_cxx = run_via_emxx
-        # Traditionally we always link as C++.  For compatibility we continue to do that,
-        # unless running in strict mode.
-        if not shared.Settings.STRICT and '-nostdlib++' not in newargs:
-          link_as_cxx = True
-        extra_files_to_link += system_libs.calculate([f for _, f in sorted(temp_files)] + extra_files_to_link, link_as_cxx, forced=forced_stdlibs)
-      linker_inputs += extra_files_to_link
+    extra_files_to_link = system_libs.get_ports(shared.Settings)
+    if '-nostdlib' not in newargs and '-nodefaultlibs' not in newargs:
+      link_as_cxx = run_via_emxx
+      # Traditionally we always link as C++.  For compatibility we continue to do that,
+      # unless running in strict mode.
+      if not shared.Settings.STRICT and '-nostdlib++' not in newargs:
+        link_as_cxx = True
+      extra_files_to_link += system_libs.calculate([f for _, f in sorted(temp_files)] + extra_files_to_link, link_as_cxx, forced=forced_stdlibs)
+    linker_inputs += extra_files_to_link
 
   # exit block 'calculate system libraries'
   log_time('calculate system libraries')

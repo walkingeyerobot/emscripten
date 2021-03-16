@@ -350,6 +350,9 @@ var __ATINIT__    = []; // functions called during startup
 var __ATMAIN__    = []; // functions called when main() is to be run
 var __ATEXIT__    = []; // functions called during shutdown
 var __ATPOSTRUN__ = []; // functions called after the main() is called
+#if USE_PTHREADS
+var __THREAD_INITS__  = []; // functions called during startup
+#endif
 
 var runtimeInitialized = false;
 var runtimeExited = false;
@@ -381,7 +384,7 @@ function initRuntime() {
   runtimeInitialized = true;
 
 #if USE_PTHREADS
-  if (ENVIRONMENT_IS_PTHREAD) return; // PThreads reuse the runtime from the main thread.
+  if (ENVIRONMENT_IS_PTHREAD) return;
 #endif
 
 #if STACK_OVERFLOW_CHECK >= 2
@@ -963,6 +966,10 @@ function createWasm() {
 
 #if '___wasm_call_ctors' in IMPLEMENTED_FUNCTIONS
     addOnInit(Module['asm']['__wasm_call_ctors']);
+#endif
+
+#if USE_PTHREADS
+    __THREAD_INITS__.push(Module['asm']['emscripten_tls_init']);
 #endif
 
 #if ABORT_ON_WASM_EXCEPTIONS

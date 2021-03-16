@@ -7,6 +7,7 @@
 
 #include <emscripten/emmalloc.h>
 #include <pthread.h>
+#include <stdio.h>
 
 // linker-generated symbol that loads static TLS data at the given location.
 extern void __wasm_init_tls(void *memory);
@@ -18,6 +19,7 @@ void emscripten_tls_init(void) {
   size_t tls_align = __builtin_wasm_tls_align();
   if (tls_size) {
     void *tls_block = emscripten_builtin_memalign(tls_align, tls_size);
+    //printf("tid:%p emscripten_tls_init %p\n", pthread_self(), tls_block);
     __wasm_init_tls(tls_block);
     pthread_cleanup_push(emscripten_builtin_free, tls_block);
   }

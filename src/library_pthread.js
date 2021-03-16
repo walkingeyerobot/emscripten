@@ -87,7 +87,7 @@ var LibraryPThread = {
       // worker.js is not compiled together with us, and must access certain
       // things.
       PThread['receiveObjectTransfer'] = PThread.receiveObjectTransfer;
-      PThread['setThreadStatus'] = PThread.setThreadStatus;
+      PThread['threadInit'] = PThread.threadInit;
       PThread['threadCancel'] = PThread.threadCancel;
       PThread['threadExit'] = PThread.threadExit;
       PThread['setExitStatus'] = PThread.setExitStatus;
@@ -318,7 +318,11 @@ var LibraryPThread = {
       }
 #endif
     },
-
+    threadInit: function() {
+      out("threadInit");
+      PThread.setThreadStatus(_pthread_self(), {{{ cDefine('EM_THREAD_STATUS_RUNNING') }}});
+      callRuntimeCallbacks(__THREAD_INITS__.slice());
+    },
     // Loads the WebAssembly module into the given list of Workers.
     // onFinishedLoading: A callback function that will be called once all of
     //                    the workers have been initialized and are
