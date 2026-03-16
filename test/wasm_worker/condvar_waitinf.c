@@ -52,7 +52,7 @@ void signaler_main() {
   }
   // At this point we know the waiter took the lock already.
   // That means that once we acquire the lock here the waiter
-  // muste be `emscripten_condvar_waitinf`.
+  // must be `emscripten_condvar_waitinf`.
 
   emscripten_out("signaler: aquiring lock");
   emscripten_lock_waitinf_acquire(&mutex);
