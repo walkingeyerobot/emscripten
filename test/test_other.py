@@ -8692,6 +8692,20 @@ int main() {
     self.set_setting('ASSERTIONS')
     self.do_runf('src.cpp', 'ERROR\n')
 
+  @with_all_eh_sjlj
+  def test_unused_eh_dce(self):
+    # Programs that don't use exceptions should not pull in libc++abi or
+    # exception formatting helpers when compiled with -fexceptions /
+    # -fwasm-exceptions. We verify this by ensuring the output Wasm binary is
+    # small.
+    create_file('main.cpp', 'int main() { return 0; }')
+    self.do_runf('main.cpp', '', cflags=['-O0'])
+
+    self.assertExists('main.wasm')
+    size = os.path.getsize('main.wasm')
+    # 3KB is a very generous upper bound for an empty program without libc++abi
+    self.assertLess(size, 3000)
+
   @requires_node
   def test_jsrun(self):
     engine = self.get_current_js_engine()
