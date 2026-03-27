@@ -366,6 +366,12 @@ var LibraryExceptions = {
     return ___thrown_object_from_unwind_exception(unwind_header);
   },
 
+  $incrementUncaughtExceptionCount__deps: ['__increment_uncaught_exception'],
+  $incrementUncaughtExceptionCount: '__increment_uncaught_exception',
+
+  $decrementUncaughtExceptionCount__deps: ['__decrement_uncaught_exception'],
+  $decrementUncaughtExceptionCount: '__decrement_uncaught_exception',
+
   $incrementExceptionRefcount__deps: ['__cxa_increment_exception_refcount', '$getCppExceptionThrownObjectFromWebAssemblyException'],
   $incrementExceptionRefcount: (ex) => {
     var ptr = getCppExceptionThrownObjectFromWebAssemblyException(ex);
@@ -384,7 +390,20 @@ var LibraryExceptions = {
     return getExceptionMessageCommon(ptr);
   },
 
-#elif !DISABLE_EXCEPTION_CATCHING
+#else
+#if !DISABLE_EXCEPTION_THROWING
+  $incrementUncaughtExceptionCount__deps: ['$uncaughtExceptionCount'],
+  $incrementUncaughtExceptionCount: () => {
+    uncaughtExceptionCount++;
+  },
+
+  $decrementUncaughtExceptionCount__deps: ['$uncaughtExceptionCount'],
+  $decrementUncaughtExceptionCount: () => {
+    uncaughtExceptionCount--;
+  },
+#endif
+
+#if !DISABLE_EXCEPTION_CATCHING
   $incrementExceptionRefcount__deps: ['__cxa_increment_exception_refcount'],
   $incrementExceptionRefcount: (exn) => ___cxa_increment_exception_refcount(exn.excPtr),
 
@@ -394,6 +413,7 @@ var LibraryExceptions = {
   $getExceptionMessage__deps: ['$getExceptionMessageCommon'],
   $getExceptionMessage: (exn) => getExceptionMessageCommon(exn.excPtr),
 
+#endif
 #endif
 };
 
