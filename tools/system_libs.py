@@ -1506,8 +1506,13 @@ class libc_optz(libc):
 class libprintf_long_double(libc):
   name = 'libprintf_long_double'
   cflags = ['-DEMSCRIPTEN_PRINTF_LONG_DOUBLE']
-  src_dir = 'system/lib/libc/musl/src/stdio'
-  src_files = ['vfprintf.c']
+
+  # Need to define get_files
+  # so libprintf_long_double.get_files() does not call libc.get_files()
+  def get_files(self):
+    return files_in_path(
+        path='system/lib/libc/musl/src/stdio',
+        filenames=['vfprintf.c'])
 
   def can_use(self):
     return super().can_use() and settings.PRINTF_LONG_DOUBLE
