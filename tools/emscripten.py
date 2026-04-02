@@ -710,7 +710,7 @@ def create_tsd(metadata, embind_tsd, bindgen_tsd = None):
     export_interfaces += ' & EmbindModule'
   if settings.WASM_BINDGEN and bindgen_tsd:
     for file_path in bindgen_tsd:
-      with open(file_path, 'r') as file:
+      with open(file_path, encoding='utf-8') as file:
           for line in file:
               out += f'{line}'
     export_interfaces += ' & BindgenModule'
