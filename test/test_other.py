@@ -945,7 +945,10 @@ f.close()
       os.mkdir(builddir)
       with common.chdir(builddir):
         # Run Cmake
-        cmd = [EMCMAKE, 'cmake'] + cmake_args + ['-G', generator, cmakelistsdir]
+
+        # Some tests have very old cmake_minimum_version settings which is not supported by cmake 4+.
+        # Forcing a slighly more recent cmake_minimum_version works around this issue.
+        cmd = [EMCMAKE, 'cmake'] + cmake_args + ['-G', generator, cmakelistsdir, '-DCMAKE_POLICY_VERSION_MINIMUM=3.5']
 
         env = os.environ.copy()
         # https://github.com/emscripten-core/emscripten/pull/5145: Check that CMake works even if EMCC_SKIP_SANITY_CHECK=1 is passed.
@@ -1215,12 +1218,6 @@ f.close()
   def test_failure_modularize_and_catch_rejection(self, compiler):
     # Test that if sMODULARIZE and sNODEJS_CATCH_REJECTION are both enabled, then emcc shouldn't succeed, and shouldn't produce an output file.
     self.expect_fail([compiler, test_file('hello_world.c'), '-sMODULARIZE', '-sNODEJS_CATCH_REJECTION', '-o', 'out.js'])
-    self.assertFalse(os.path.exists('out.js'))
-
-  @with_both_compilers
-  def test_failure_modularize_and_catch_exit(self, compiler):
-    # Test that if sMODULARIZE and sNODEJS_CATCH_EXIT are both enabled, then emcc shouldn't succeed, and shouldn't produce an output file.
-    self.expect_fail([compiler, test_file('hello_world.c'), '-sMODULARIZE', '-sNODEJS_CATCH_EXIT', '-o', 'out.js'])
     self.assertFalse(os.path.exists('out.js'))
 
   def test_use_cxx(self):
@@ -2060,7 +2057,7 @@ Module['postRun'] = () => {
     self.do_runf('main.c', '|frist|\n|sacond|\n|thard|\n',
                  cflags=['--embed-file', 'tst'] + args)
 
-  def test_exclude_file(self):
+  def test_embed_file_exclude(self):
     ensure_dir('tst/abc.exe')
     ensure_dir('tst/abc.txt')
 
@@ -2069,19 +2066,22 @@ Module['postRun'] = () => {
     create_file('tst/abc.exe/foo', 'emscripten')
     create_file('tst/abc.txt/bar', '!!!')
     create_file('main.c', r'''
+      #include <assert.h>
       #include <stdio.h>
+      #include <unistd.h>
+      int exists(const char* filename) {
+        return access(filename, F_OK) == 0;
+      }
       int main() {
-        if(fopen("tst/hello.exe", "rb")) printf("Failed\n");
-        if(!fopen("tst/hello.txt", "rb")) printf("Failed\n");
-        if(fopen("tst/abc.exe/foo", "rb")) printf("Failed\n");
-        if(!fopen("tst/abc.txt/bar", "rb")) printf("Failed\n");
-
+        assert(exists("tst/hello.txt"));
+        assert(exists("tst/abc.txt/bar"));
+        assert(!exists("tst/hello.exe"));
+        assert(!exists("tst/abc.exe/foo"));
         return 0;
       }
     ''')
 
-    self.run_process([EMCC, 'main.c', '--embed-file', 'tst', '--exclude-file', '*.exe'])
-    self.assertEqual(self.run_js('a.out.js').strip(), '')
+    self.do_runf('main.c', cflags=['--embed-file', 'tst', '--exclude-file', '*.exe'])
 
   def test_dylink_strict(self):
     self.do_run_in_out_file_test('hello_world.c', cflags=['-sSTRICT', '-sMAIN_MODULE=1'])
@@ -3378,6 +3378,9 @@ More info: https://emscripten.org
   def test_embind_allow_raw_pointer(self):
     self.emcc(test_file('embind/test_embind_allow_raw_pointer.cpp'), ['-lembind'])
 
+  def test_embind_subclass_pointer(self):
+    self.emcc(test_file('embind/test_embind_subclass_pointer.cpp'), ['-lembind'])
+
   @is_slow_test
   @parameterized({
     '': [],
@@ -3593,6 +3596,7 @@ More info: https://emscripten.org
     '4': [['-fsanitize=undefined', '-gsource-map'], 'embind_tsgen_ignore_3.d.ts'],
     '5': [['-sASYNCIFY'], 'embind_tsgen_ignore_3.d.ts'],
     '6': [['-sENVIRONMENT=worker', '-lworkerfs.js'], 'embind_tsgen.d.ts'],
+    '7': [['-sMEMORY64=1', '-gsource-map'], 'embind_tsgen_ignore_7.d.ts'],
   })
   def test_embind_tsgen_ignore(self, extra_args, expected_ts_file):
     create_file('fail.js', 'assert(false);')
@@ -4195,37 +4199,6 @@ void wakaw::Cm::RasterBase<wakaw::watwat::Polocator>::merbine1<wakaw::Cm::Raster
     # Check that main.js (which requires test.js) completes successfully when run in node.js
     # in order to check that the exports are indeed functioning correctly.
     self.assertContained('bufferTest finished', self.run_js('main.js'))
-
-  @requires_node
-  def test_node_catch_exit(self):
-    # Test that in top level JS exceptions are caught and rethrown when NODEJS_EXIT_CATCH=1
-    # is set but not by default.
-    create_file('count.c', '''
-      #include <string.h>
-      int count(const char *str) {
-        return (int)strlen(str);
-      }
-    ''')
-
-    create_file('index.js', '''
-      const count = require('./count.js');
-
-      console.log(xxx); //< here is the ReferenceError
-    ''')
-
-    reference_error_text = 'console.log(xxx); //< here is the ReferenceError'
-
-    self.run_process([EMCC, 'count.c', '-o', 'count.js', '-sNODEJS_CATCH_EXIT=1'])
-
-    # Check that the ReferenceError is caught and rethrown and thus the original error line is masked
-    self.assertNotContained(reference_error_text,
-                            self.run_js('index.js', assert_returncode=NON_ZERO))
-
-    self.run_process([EMCC, 'count.c', '-o', 'count.js'])
-
-    # Check that the ReferenceError is not caught, so we see the error properly
-    self.assertContained(reference_error_text,
-                         self.run_js('index.js', assert_returncode=NON_ZERO))
 
   @requires_node
   def test_exported_runtime_methods(self):
@@ -12935,47 +12908,6 @@ void foo() {}
     self.assertContained('closure compiler', err)
     self.assertContained(sys.executable, err)
     self.assertContained('not execute properly!', err)
-
-  @requires_node
-  def test_node_unhandled_rejection(self):
-    create_file('pre.js', '''
-    async function foo() {
-      abort("this error will become an unhandled rejection");
-    }
-    async function doReject() {
-      return foo();
-    }
-    ''')
-    create_file('main.c', '''
-    #include <emscripten.h>
-
-    int main() {
-      EM_ASM(setTimeout(doReject, 0));
-      emscripten_exit_with_live_runtime();
-      __builtin_trap();
-    }
-    ''')
-
-    # With NODEJS_CATCH_REJECTION we expect the unhandled rejection to cause a non-zero
-    # exit code and log the stack trace correctly.
-    self.build('main.c', cflags=['--pre-js=pre.js', '-sNODEJS_CATCH_REJECTION'])
-    output = self.run_js('main.js', assert_returncode=NON_ZERO)
-    self.assertContained('unhandledRejection', read_file('main.js'))
-    self.assertContained('RuntimeError: Aborted(this error will become an unhandled rejection)', output)
-    self.assertContained('at foo (', output)
-
-    # Without NODEJS_CATCH_REJECTION we expect node to log the unhandled rejection
-    # but return 0.
-    self.node_args = [a for a in self.node_args if '--unhandled-rejections' not in a]
-    self.build('main.c', cflags=['--pre-js=pre.js', '-sNODEJS_CATCH_REJECTION=0'])
-    self.assertNotContained('unhandledRejection', read_file('main.js'))
-
-    if not get_nodejs() or shared.get_node_version(get_nodejs())[0] >= 15:
-      self.skipTest('old behaviour of node JS cannot be tested on node v15 or above')
-
-    output = self.run_js('main.js')
-    self.assertContained('RuntimeError: Aborted(this error will become an unhandled rejection)', output)
-    self.assertContained('at foo (', output)
 
   def test_default_pthread_stack_size(self):
     self.do_runf('other/test_default_pthread_stack_size.c')

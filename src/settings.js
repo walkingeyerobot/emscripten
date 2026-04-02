@@ -789,28 +789,6 @@ var EXCEPTION_STACK_TRACES = false;
 // [compile+link]
 var WASM_LEGACY_EXCEPTIONS = true;
 
-// Emscripten throws an ExitStatus exception to unwind when exit() is called.
-// Without this setting enabled this can show up as a top level unhandled
-// exception.
-//
-// With this setting enabled a global uncaughtException handler is used to
-// catch and handle ExitStatus exceptions.  However, this means all other
-// uncaught exceptions are also caught and re-thrown, which is not always
-// desirable.
-//
-// [link]
-var NODEJS_CATCH_EXIT = false;
-
-// Catch unhandled rejections in node. This only affects versions of node older
-// than 15.  Without this, old version node will print a warning, but exit
-// with a zero return code.  With this setting enabled, we handle any unhandled
-// rejection and throw an exception, which will cause the process to exit
-// immediately with a non-0 return code.
-// This is not needed in Node 15+ so this setting will default to false if
-// MIN_NODE_VERSION is 150000 or above.
-// [link]
-var NODEJS_CATCH_REJECTION = true;
-
 // Whether to support async operations in the compiled code. This makes it
 // possible to call JS functions from synchronous-looking code in C/C++.
 //

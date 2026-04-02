@@ -25,6 +25,8 @@
 #error "internal error, feature_matrix should not allow this"
 #endif
 
+#endif // ~WASM_WORKERS
+
 {{{
   const workerSupportsFutexWait = () => AUDIO_WORKLET ? "!ENVIRONMENT_IS_AUDIO_WORKLET" : '1';
   const wasmWorkerJs = `
@@ -44,18 +46,21 @@
 #endif
 #if ENVIRONMENT_MAY_BE_NODE
   // This is the way that we signal to the node worker that it is hosting
-  // a wasm worker.
+  // a Wasm Worker.
   'workerData': 'em-ww',
 #endif
 #if ENVIRONMENT_MAY_BE_WEB || ENVIRONMENT_MAY_BE_WORKER
   // This is the way that we signal to the Web Worker that it is hosting
-  // a pthread.
+  // a Wasm Worker.
+#if ASSERTIONS
+  'name': 'em-ww-' + _wasmWorkersID,
+#else
   'name': 'em-ww',
+#endif
 #endif
 }`;
 }}}
 
-#endif // ~WASM_WORKERS
 
 
 addToLibrary({
@@ -338,5 +343,20 @@ if (ENVIRONMENT_IS_WASM_WORKER
       else dispatch(-1/*idx*/, 2/*'timed-out'*/);
     };
     tryAcquireSemaphore();
-  }
+  },
+
+#if !PTHREADS
+  // When pthreads are used we call `__set_thread_state` immediately on worker
+  // creation.  When wasm workers is used without pthreads, we call
+  // `__set_thread_state` lazily to save code size for programs that don't use
+  // the threads state.
+  __do_set_thread_state__deps: ['__set_thread_state'],
+  __do_set_thread_state: (tb) => {
+    ___set_thread_state(
+      /*thread_ptr=*/0,
+      /*is_main_thread=*/!ENVIRONMENT_IS_WORKER,
+      /*is_runtime_thread=*/!ENVIRONMENT_IS_WASM_WORKER,
+      /*supports_wait=*/ENVIRONMENT_IS_WORKER && {{{ workerSupportsFutexWait() }}});
+  },
+#endif
 });

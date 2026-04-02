@@ -1369,15 +1369,6 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
 
   check_browser_versions()
 
-  if settings.MIN_NODE_VERSION >= 150000:
-    default_setting('NODEJS_CATCH_REJECTION', 0)
-
-  # Do not catch rejections or exits in modularize mode, as these options
-  # are for use when running emscripten modules standalone
-  # see https://github.com/emscripten-core/emscripten/issues/18723#issuecomment-1429236996
-  if settings.MODULARIZE:
-    default_setting('NODEJS_CATCH_REJECTION', 0)
-
   if settings.POLYFILL:
     # Emscripten requires certain ES6+ constructs by default in library code
     # - (various ES6 operators available in all browsers listed below)
@@ -1550,9 +1541,11 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
   if settings.MEMORY64 and settings.RELOCATABLE:
     settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE.append('__table_base32')
 
+  if settings.WASM_WORKERS or (settings.SHARED_MEMORY and not settings.PTHREADS):
+    add_system_js_lib('libwasm_worker.js')
+
   if settings.WASM_WORKERS:
     settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += ['$_wasmWorkerInitializeRuntime']
-    add_system_js_lib('libwasm_worker.js')
 
   # Set min browser versions based on certain settings such as WASM_BIGINT,
   # PTHREADS, AUDIO_WORKLET
@@ -1860,10 +1853,6 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
       diagnostics.warning('unused-command-line-argument', 'NODERAWFS ignored since `node` not in `ENVIRONMENT`')
     if settings.NODE_CODE_CACHING:
       diagnostics.warning('unused-command-line-argument', 'NODE_CODE_CACHING ignored since `node` not in `ENVIRONMENT`')
-    if settings.NODEJS_CATCH_EXIT:
-      diagnostics.warning('unused-command-line-argument', 'NODEJS_CATCH_EXIT ignored since `node` not in `ENVIRONMENT`')
-    if settings.NODEJS_CATCH_REJECTION and 'NODEJS_CATCH_REJECTION' in user_settings:
-      diagnostics.warning('unused-command-line-argument', 'NODEJS_CATCH_REJECTION ignored since `node` not in `ENVIRONMENT`')
 
   settings.PRE_JS_FILES = options.pre_js
   settings.POST_JS_FILES = options.post_js
@@ -2043,6 +2032,7 @@ def run_embind_gen(options, wasm_target, js_syms, extra_settings):
     settings.MEMORY64 = 2
   # Source maps haven't been generated yet and aren't needed to run embind_gen.
   settings.LOAD_SOURCE_MAP = 0
+  settings.GENERATE_SOURCE_MAP = 0
   outfile_js = in_temp('tsgen.js')
   # The Wasm outfile may be modified by emscripten.emscript, so use a temporary file.
   outfile_wasm = in_temp('tsgen.wasm')
