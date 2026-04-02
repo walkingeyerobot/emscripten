@@ -678,7 +678,7 @@ def create_tsd_exported_runtime_methods(metadata):
   return utils.read_file(tsc_output_file)
 
 
-def create_tsd(metadata, embind_tsd, bindgen_tsd = None):
+def create_tsd(metadata, embind_tsd, bindgen_tsd=None):
   out = '// TypeScript bindings for emscripten-generated code.  Automatically generated at compile time.\n'
   if settings.EXPORTED_RUNTIME_METHODS:
     out += create_tsd_exported_runtime_methods(metadata)
