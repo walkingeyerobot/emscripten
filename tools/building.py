@@ -53,7 +53,7 @@ logger = logging.getLogger('building')
 
 #  Building
 binaryen_checked = False
-EXPECTED_BINARYEN_VERSION = 127
+EXPECTED_BINARYEN_VERSION = 128
 
 _is_ar_cache: dict[str, bool] = {}
 # the exports the user requested
@@ -182,11 +182,11 @@ def lld_flags_for_executable(external_symbols):
   # wasm-ld can strip debug info for us. this strips both the Names
   # section and DWARF, so we can only use it when we don't need any of
   # those things.
-  if   (not settings.GENERATE_DWARF and
-        not settings.EMIT_SYMBOL_MAP and
-        not settings.GENERATE_SOURCE_MAP and
-        not settings.EMIT_NAME_SECTION and
-        not settings.ASYNCIFY):
+  if (not settings.GENERATE_DWARF and
+      not settings.EMIT_SYMBOL_MAP and
+      not settings.GENERATE_SOURCE_MAP and
+      not settings.EMIT_NAME_SECTION and
+      not settings.ASYNCIFY):
     cmd.append('--strip-debug')
 
   if settings.LINKABLE:
@@ -308,7 +308,7 @@ def lld_flags(args, linker_inputs=[]):
   # lld doesn't currently support --start-group/--end-group since the
   # semantics are more like the windows linker where there is no need for
   # grouping.
-  args = [a for a in args if a not in ('--start-group', '--end-group')]
+  args = [a for a in args if a not in {'--start-group', '--end-group'}]
 
   if settings.WASM_BINDGEN:
     exported_symbols = get_wasm_bindgen_exported_symbols(linker_inputs)
@@ -419,7 +419,7 @@ def acorn_optimizer(filename, passes, extra_info=None, return_output=False, work
     temp_files = shared.get_temp_files()
     temp = temp_files.get('.js', prefix='emcc_acorn_info_').name
     shutil.copyfile(filename, temp)
-    with open(temp, 'a') as f:
+    with open(temp, 'a', encoding='utf-8') as f:
       f.write('// EXTRA_INFO: ' + json.dumps(extra_info))
     filename = temp
   cmd = config.NODE_JS + [optimizer, filename] + passes
@@ -773,7 +773,7 @@ def run_closure_cmd(cmd, filename, env):
 
   # Print input file (long wall of text!)
   if DEBUG == 2 and (proc.returncode != 0 or (len(proc.stderr.strip()) > 0 and closure_warnings['enabled'])):
-    input_file = open(filename).read().splitlines()
+    input_file = utils.read_file(filename).splitlines()
     for i in range(len(input_file)):
       sys.stderr.write(f'{i + 1}: {input_file[i]}\n')
 
@@ -927,7 +927,7 @@ def metadce(js_file, wasm_file, debug_info, last):
       name = line.removeprefix('unused:').strip()
       # With dynamic linking we never want to strip the memory or the table
       # This can be removed once SIDE_MODULE_IMPORTS includes tables and memories.
-      if settings.MAIN_MODULE and name.split('$')[-1] in ('wasmMemory', 'wasmTable'):
+      if settings.MAIN_MODULE and name.split('$')[-1] in {'wasmMemory', 'wasmTable'}:
         continue
       # we only remove imports and exports in applyDCEGraphRemovals
       if name.startswith('emcc$import$'):
@@ -968,14 +968,46 @@ def minify_wasm_imports_and_exports(js_file, wasm_file, minify_exports, debug_in
   args += get_last_binaryen_opts()
   out = run_wasm_opt(wasm_file, wasm_file, args, debug=debug_info, stdout=PIPE)
 
-  # get the mapping
-  SEP = ' => '
+  # Get the mapping. This can be in the old format, which is lines of
+  #
+  # OLD => NEW
+  #
+  # Or, it can be the new format:
+  #
+  # {
+  #   "imports": [
+  #     [OLD_MODULE, OLD, NEW],
+  #     ..
+  #   },
+  #   "exports": [
+  #     [OLD, NEW],
+  #     ..
+  #   }
+  # }
+  #
+  # We differentiate them by the first character (if present).
+  #
+  # TODO: Remove the old format eventually after the new one rolls in.
   mapping = {}
-  for line in out.split('\n'):
-    if SEP in line:
-      old, new = line.strip().split(SEP)
+  if not out or out[0] != '{':
+    SEP = ' => '
+    for line in out.split('\n'):
+      if SEP in line:
+        old, new = line.strip().split(SEP)
+        assert old not in mapping, 'imports must be unique'
+        mapping[old] = new
+  else:
+    parsed = json.loads(out)
+    for imp in parsed['imports']:
+      # the module name is ignored; we assume no collisions can happen there
+      module, old, new = imp
       assert old not in mapping, 'imports must be unique'
       mapping[old] = new
+    for exp in parsed['exports']:
+      old, new = exp
+      assert old not in mapping, 'exports must be unique'
+      mapping[old] = new
+
   # apply them
   passes = ['applyImportAndExportNameChanges']
   if settings.MINIFY_WHITESPACE:
@@ -1025,7 +1057,7 @@ def wasm2js(js_file, wasm_file, opt_level, use_closure_compiler, debug_info, sym
   #       purpose JS minifier here.
   if use_closure_compiler == 2:
     temp = shared.get_temp_files().get('.js').name
-    with open(temp, 'a') as f:
+    with open(temp, 'a', encoding='utf-8') as f:
       f.write(wasm2js_js)
     temp = closure_compiler(temp, advanced=False)
     wasm2js_js = utils.read_file(temp)
@@ -1044,7 +1076,7 @@ def wasm2js(js_file, wasm_file, opt_level, use_closure_compiler, debug_info, sym
   marker = finds[0]
   all_js = all_js.replace(marker, f'(\n{wasm2js_js}\n)')
   # replace the placeholder with the actual code
-  js_file = js_file + '.wasm2js.js'
+  js_file += '.wasm2js.js'
   utils.write_file(js_file, all_js)
   return js_file
 
@@ -1149,7 +1181,7 @@ def read_name_section(wasm_file):
 def write_symbol_map(wasm_file, symbols_file):
   logger.debug('handle_final_wasm_symbols')
   names = read_name_section(wasm_file)
-  assert(names)
+  assert names
   strings = [f'{id}:{name}' for id, name in names.items()]
   contents = '\n'.join(strings) + '\n'
   utils.write_file(symbols_file, contents)
@@ -1164,7 +1196,7 @@ def is_ar(filename):
     logger.debug('is_ar failed to test whether file \'%s\' is a llvm archive file! Failed on exception: %s' % (filename, e))
     return False
 
-  return header in (b'!<arch>\n', b'!<thin>\n')
+  return header in {b'!<arch>\n', b'!<thin>\n'}
 
 
 def is_wasm(filename):
@@ -1182,7 +1214,7 @@ def is_wasm_dylib(filename):
     section = next(module.sections())
     if section.type == webassembly.SecType.CUSTOM:
       module.seek(section.offset)
-      if module.read_string() in ('dylink', 'dylink.0'):
+      if module.read_string() in {'dylink', 'dylink.0'}:
         return True
   return False
 
@@ -1197,7 +1229,7 @@ def emit_wasm_source_map(wasm_file, map_file, final_wasm):
   wasm_sourcemap = importlib.import_module('tools.wasm-sourcemap')
   sourcemap_cmd = [wasm_file,
                    '--dwarfdump=' + LLVM_DWARFDUMP,
-                   '-o',  map_file,
+                   '-o', map_file,
                    '--basepath=' + base_path]
 
   if settings.SOURCE_MAP_PREFIXES:
@@ -1243,7 +1275,7 @@ def check_binaryen(bindir):
 
   # Allow the expected version or the following one in order avoid needing to update both
   # emscripten and binaryen in lock step in emscripten-releases.
-  if version not in (EXPECTED_BINARYEN_VERSION, EXPECTED_BINARYEN_VERSION + 1):
+  if version not in {EXPECTED_BINARYEN_VERSION, EXPECTED_BINARYEN_VERSION + 1}:
     diagnostics.warning('version-check', 'unexpected binaryen version: %s (expected %s)', version, EXPECTED_BINARYEN_VERSION)
 
 
@@ -1288,7 +1320,7 @@ def run_binaryen_command(tool, infile, outfile=None, args=None, debug=False, std
   # we must tell binaryen to update it
   # TODO: all tools should support source maps; wasm-ctor-eval does not atm,
   #       for example
-  if settings.GENERATE_SOURCE_MAP and outfile and tool in ['wasm-opt', 'wasm-emscripten-finalize', 'wasm-metadce']:
+  if settings.GENERATE_SOURCE_MAP and outfile and tool in {'wasm-opt', 'wasm-emscripten-finalize', 'wasm-metadce'}:
     cmd += [f'--input-source-map={infile}.map']
     cmd += [f'--output-source-map={outfile}.map']
   if shared.SKIP_SUBPROCS:

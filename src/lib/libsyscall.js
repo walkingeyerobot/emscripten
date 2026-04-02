@@ -199,11 +199,17 @@ var SyscallsLibrary = {
     if (fdPtr == 0) {
       throw new FS.ErrnoError({{{ cDefs.EFAULT }}});
     }
-    if (flags && flags != {{{ cDefs.O_CLOEXEC }}}) {
+    var validFlags = {{{ cDefs.O_CLOEXEC }}} | {{{ cDefs.O_NONBLOCK }}};
+    if (flags & ~validFlags) {
       throw new FS.ErrnoError({{{ cDefs.ENOTSUP }}});
     }
 
     var res = PIPEFS.createPipe();
+
+    if (flags & {{{ cDefs.O_NONBLOCK }}}) {
+      FS.getStream(res.readable_fd).flags |= {{{ cDefs.O_NONBLOCK }}};
+      FS.getStream(res.writable_fd).flags |= {{{ cDefs.O_NONBLOCK }}};
+    }
 
     {{{ makeSetValue('fdPtr', 0, 'res.readable_fd', 'i32') }}};
     {{{ makeSetValue('fdPtr', 4, 'res.writable_fd', 'i32') }}};
@@ -339,7 +345,7 @@ var SyscallsLibrary = {
     if (info.errno) throw new FS.ErrnoError(info.errno);
     info.addr = DNS.lookup_addr(info.addr) || info.addr;
 #if SYSCALL_DEBUG
-    dbg('    (socketaddress: "' + [info.addr, info.port] + '")');
+    dbg(`    (socketaddress: "${[info.addr, info.port]}")`);
 #endif
     return info;
   },

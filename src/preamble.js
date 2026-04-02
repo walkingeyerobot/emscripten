@@ -235,13 +235,16 @@ function postRun() {
   <<< ATPOSTRUNS >>>
 }
 
-/** @param {string|number=} what */
+/**
+ * @param {string|number=} what
+ * @noreturn
+ */
 function abort(what) {
 #if expectToReceiveOnModule('onAbort')
   Module['onAbort']?.(what);
 #endif
 
-  what = 'Aborted(' + what + ')';
+  what = `Aborted(${what})`;
   // TODO(sbc): Should we remove printing and leave it up to whoever
   // catches the exception?
   err(what);
@@ -360,11 +363,7 @@ function makeAbortWrapper(original) {
         ABORT // rethrow exception if abort() was called in the original function call above
         || abortWrapperDepth > 1 // rethrow exceptions not caught at the top level if exception catching is enabled; rethrow from exceptions from within callMain
 #if SUPPORT_LONGJMP == 'emscripten' // Rethrow longjmp if enabled
-#if EXCEPTION_STACK_TRACES
-        || e instanceof EmscriptenSjLj // EXCEPTION_STACK_TRACES=1 will throw an instance of EmscriptenSjLj
-#else
-        || e === Infinity // EXCEPTION_STACK_TRACES=0 will throw Infinity
-#endif // EXCEPTION_STACK_TRACES
+        || e instanceof EmscriptenSjLj
 #endif
         || e === 'unwind'
       ) {

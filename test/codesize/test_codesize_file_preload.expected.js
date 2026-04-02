@@ -307,6 +307,11 @@ var EXITSTATUS;
 // include: runtime_stack_check.js
 // end include: runtime_stack_check.js
 // include: runtime_exceptions.js
+// Base Emscripten EH error class
+class EmscriptenEH {}
+
+class EmscriptenSjLj extends EmscriptenEH {}
+
 // end include: runtime_exceptions.js
 // include: runtime_debug.js
 // end include: runtime_debug.js
@@ -356,8 +361,11 @@ function preMain() {}
 
 function postRun() {}
 
-/** @param {string|number=} what */ function abort(what) {
-  what = "Aborted(" + what + ")";
+/**
+ * @param {string|number=} what
+ * @noreturn
+ */ function abort(what) {
+  what = `Aborted(${what})`;
   // TODO(sbc): Should we remove printing and leave it up to whoever
   // catches the exception?
   err(what);
@@ -620,13 +628,10 @@ var initRandomFill = () => {
     var nodeCrypto = require("node:crypto");
     return view => nodeCrypto.randomFillSync(view);
   }
-  return view => crypto.getRandomValues(view);
+  return view => (crypto.getRandomValues(view), 0);
 };
 
-var randomFill = view => {
-  // Lazily init on the first invocation.
-  (randomFill = initRandomFill())(view);
-};
+var randomFill = view => (randomFill = initRandomFill())(view);
 
 var PATH_FS = {
   resolve: (...args) => {
@@ -3077,7 +3082,7 @@ function _fd_write(fd, iov, iovcnt, pnum) {
 
 var keepRuntimeAlive = () => true;
 
-var _proc_exit = code => {
+/** @noreturn */ var _proc_exit = code => {
   EXITSTATUS = code;
   if (!keepRuntimeAlive()) {
     ABORT = true;

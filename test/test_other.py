@@ -960,7 +960,7 @@ f.close()
   def test_cmake_compile_commands(self, args):
     self.run_process([EMCMAKE, 'cmake', test_file('cmake/static_lib'), '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON'] + args)
     self.assertExists('compile_commands.json')
-    compile_commands = json.load(open('compile_commands.json'))
+    compile_commands = json.loads(utils.read_file('compile_commands.json'))
     command = compile_commands[0]['command']
     # Sometimes cmake puts the include dirs in an RSP file
     rsp = [p for p in command.split() if 'includes_CXX.rsp' in p]
@@ -1653,7 +1653,7 @@ int f() {
     self.do_runf('lib.c', 'libfunc\n', cflags=['-sEXPORTED_FUNCTIONS=_libfunc2', '-sEXPORT_ALL', '--pre-js', 'pre.js'])
 
   @all_engines
-  @also_with_wasmfs
+  @with_all_fs
   @crossplatform
   @parameterized({
     '': ([],),
@@ -2560,6 +2560,42 @@ F1 -> ''
                  args=['screenshot.jpg'])
 
   @requires_network
+  def test_side_module_with_ports(self):
+    # Verify that ports can be used in side modules, and that the resulting
+    # side module can be used from a main module.
+    create_file('side.c', r'''
+      #include <stdio.h>
+      #include <gif_lib.h>
+
+      void gif_side_test(void) {
+        ColorMapObject* map = GifMakeMapObject(2, NULL);
+        if (map) {
+          GifFreeMapObject(map);
+        }
+        puts("gif side ok");
+      }
+    ''')
+
+    create_file('main.c', r'''
+      #include <stdio.h>
+
+      void gif_side_test(void);
+
+      int main() {
+        gif_side_test();
+        puts("main ok");
+        return 0;
+      }
+    ''')
+
+    self.emcc('side.c', args=['-sSIDE_MODULE', '-sUSE_GIFLIB', '-lgif', '-o', 'libgif_side.so'])
+    self.assertExists('libgif_side.so')
+
+    # Linking the side module into the main module should cause it to be loaded
+    # automatically at runtime.
+    self.do_runf('main.c', 'gif side ok\n', cflags=['-sMAIN_MODULE=2', 'libgif_side.so'])
+
+  @requires_network
   @also_with_wasm64
   def test_bullet(self):
     self.do_runf('test_bullet_hello_world.cpp', 'BULLET RUNNING', cflags=['-sUSE_BULLET'])
@@ -2853,7 +2889,7 @@ More info: https://emscripten.org
 
     # addRunDependency during preRun should prevent main, and post-run from
     # running.
-    with open('pre.js', 'a') as f:
+    with open('pre.js', 'a', encoding='utf-8') as f:
       f.write('Module["preRun"] = () => { out("add-dep"); addRunDependency("dep"); }\n')
     self.set_setting('DEFAULT_LIBRARY_FUNCS_TO_INCLUDE', '$addRunDependency')
     output = self.do_runf('hello_world.c', cflags=['--pre-js', 'pre.js', '-sRUNTIME_DEBUG', '-sWASM_ASYNC_COMPILATION=0', '-O2', '--closure=1'])
@@ -2956,8 +2992,8 @@ More info: https://emscripten.org
     'safeHeap': (['safeHeap'],),
     'object-literals': ([],),
     'LittleEndianHeap': (['littleEndianHeap'],),
-    'LittleEndianGrowableHeap': (['growableHeap','littleEndianHeap'],),
-    'LittleEndianGrowableSafeHeap': (['safeHeap','growableHeap','littleEndianHeap'],),
+    'LittleEndianGrowableHeap': (['growableHeap', 'littleEndianHeap'],),
+    'LittleEndianGrowableSafeHeap': (['safeHeap', 'growableHeap', 'littleEndianHeap'],),
   })
   @crossplatform
   def test_js_optimizer(self, passes, filename=None):
@@ -3088,7 +3124,7 @@ More info: https://emscripten.org
   # Verify if the given file name contains a source map
   def verify_source_map_exists(self, map_file):
     self.assertExists(map_file)
-    data = json.load(open(map_file))
+    data = json.loads(utils.read_file(map_file))
     # Simply check the existence of required sections
     self.assertIn('version', data)
     self.assertIn('sources', data)
@@ -4155,7 +4191,7 @@ void wakaw::Cm::RasterBase<wakaw::watwat::Polocator>::merbine1<wakaw::Cm::Raster
     output = self.run_js('a.out.js', assert_returncode=NON_ZERO)
     if output.count('Cannot enlarge memory arrays') > 5:
       print(output)
-    self.assertLess(output.count('Cannot enlarge memory arrays'),  6)
+    self.assertLess(output.count('Cannot enlarge memory arrays'), 6)
 
   @requires_node
   def test_module_exports_with_closure(self):
@@ -4542,7 +4578,7 @@ int main() {
 
     def add_on_abort_and_verify(extra=''):
       js = read_file('a.out.js')
-      with open('a.out.js', 'w') as f:
+      with open('a.out.js', 'w', encoding='utf-8') as f:
         f.write("var Module = { onAbort: () => console.log('%s') };\n" % expected_output)
         f.write(extra + '\n')
         f.write(js)
@@ -4589,7 +4625,7 @@ int main() {
       ''')
     self.run_process([EMCC, 'src.c', '-sWASM_ASYNC_COMPILATION=0'])
     js = read_file('a.out.js')
-    with open('a.out.js', 'w') as f:
+    with open('a.out.js', 'w', encoding='utf-8') as f:
       f.write("var Module = { onAbort: () => { console.log('%s'); throw 're-throw'; } };\n" % expected_output)
       f.write(js)
     out = self.run_js('a.out.js', assert_returncode=NON_ZERO)
@@ -4872,9 +4908,9 @@ Waste<3> *getMore() {
     for suffix in ('.o', '.bc', '.so', '.dylib', '.js', '.html'):
       print(suffix)
       cmd = [EMCC, test_file('hello_world.c'), '-o', 'out' + suffix]
-      if suffix in ['.o', '.bc']:
+      if suffix in {'.o', '.bc'}:
         cmd.append('-c')
-      if suffix in ['.dylib', '.so']:
+      if suffix in {'.dylib', '.so'}:
         cmd.append('-shared')
       err = self.run_process(cmd, stderr=PIPE).stderr
       warning = 'linking a library with `-shared` will emit a static object file'
@@ -4907,7 +4943,7 @@ Waste<3> *getMore() {
     def is_js_symbol_map(symbols_file):
       for _minified, full in read_symbol_map(symbols_file):
         # define symbolication file by JS specific entries
-        if full in ['FUNCTION_TABLE', 'HEAP32']:
+        if full in {'FUNCTION_TABLE', 'HEAP32'}:
           return True
       return False
 
@@ -7405,14 +7441,14 @@ addToLibrary({
     'mimalloc_pthreads': ('mimalloc', ['-DWORKERS=4', '-pthread']),
   })
   def test_malloc_multithreading(self, allocator, args):
-    args = args + [
+    cflags = [
       '-O2',
       '-DTOTAL=10000',
       '-sINITIAL_MEMORY=128mb',
       '-sTOTAL_STACK=1mb',
       f'-sMALLOC={allocator}',
     ]
-    self.do_other_test('test_malloc_multithreading.c', cflags=args)
+    self.do_other_test('test_malloc_multithreading.c', cflags=cflags + args)
 
   @parameterized({
     '': ([], 'testbind.js'),
@@ -8827,16 +8863,16 @@ int main() {
         # These headers cannot be included in isolation.
         # e.g: error: unknown type name 'EGLDisplay'
         # Don't include avxintrin.h and avx2inrin.h directly, include immintrin.h instead
-        if header in ['eglext.h', 'SDL_config_macosx.h', 'glext.h', 'gl2ext.h', 'avxintrin.h', 'avx2intrin.h']:
+        if header in {'eglext.h', 'SDL_config_macosx.h', 'glext.h', 'gl2ext.h', 'avxintrin.h', 'avx2intrin.h'}:
           continue
         # These headers are C++ only and cannot be included from C code.
         # But we still want to check they can be included on there own without
         # any errors or warnings.
-        cxx_only = header in [
+        cxx_only = header in {
           'wire.h', 'val.h', 'bind.h',
           # Some headers are not yet C compatible
           'arm_neon.h',
-        ]
+        }
         if directory and directory != 'compat':
           header = f'{directory}/{header}'
         inc = f'#include <{header}>\n__attribute__((weak)) int foo;\n'
@@ -8862,9 +8898,9 @@ int main() {
     'closure': (False, True),
   })
   @parameterized({
-    '': (True,False),
-    'disabled': (False,False),
-    'binary_encode': (True,True),
+    '': (True, False),
+    'disabled': (False, False),
+    'binary_encode': (True, True),
   })
   def test_single_file(self, debug_enabled, closure_enabled, single_file_enabled, single_file_binary_encoded):
     cmd = [EMCC, test_file('hello_world.c')] + self.get_cflags()
@@ -9550,7 +9586,7 @@ int main() {
     # "sourcesContent" contains source code iff -gsource-map=inline is specified.
     if sources:
       p = wasm_sourcemap.Prefixes(prefixes, preserve_deterministic_prefix=False)
-      for filepath in [src_file, lib_file]:
+      for filepath in {src_file, lib_file}:
         resolved_path = p.resolve(utils.normalize_path(filepath))
         sources_content = json.dumps(read_file(resolved_path))
         self.assertIn(sources_content, output)
@@ -11244,7 +11280,7 @@ int main(void) {
     def test_error(pre):
       create_file('pre.js', pre)
       expected = 'All preRun tasks that exist before user pre-js code should remain after; did you replace Module or modify Module.preRun?'
-      self.do_runf('src.c', expected, cflags=['--pre-js=pre.js', '--preload-file=src.c'],  assert_returncode=NON_ZERO)
+      self.do_runf('src.c', expected, cflags=['--pre-js=pre.js', '--preload-file=src.c'], assert_returncode=NON_ZERO)
 
     # error if the user replaces Module or Module.preRun
     test_error('Module = { preRun: [] };')
@@ -12611,7 +12647,7 @@ exec "$@"
     count = 300
     for i in range(count):
       name = 'a' + str(i)
-      name = name * 32
+      name *= 32
       create_o(name, i)
 
     create_file('main.c', '#include<stdio.h>\n%s int main() { int value = 0; %s printf("%%d\\n", value); }' % (decls, calls))
@@ -13011,7 +13047,6 @@ void foo() {}
   def test_pthread_growth_mainthread(self, cflags, pthread_pool_size):
     if '-sGROWABLE_ARRAYBUFFERS' in cflags:
       self.node_args.append('--experimental-wasm-rab-integration')
-      self.v8_args.append('--experimental-wasm-rab-integration')
       self.require_node_25()
     else:
       self.cflags.append('-Wno-pthreads-mem-growth')
@@ -13021,7 +13056,6 @@ void foo() {}
   @requires_node_25
   def test_growable_arraybuffers(self):
     self.node_args.append('--experimental-wasm-rab-integration')
-    self.v8_args.append('--experimental-wasm-rab-integration')
     self.do_runf('hello_world.c',
                  cflags=['-O2', '-pthread', '-sALLOW_MEMORY_GROWTH', '-sGROWABLE_ARRAYBUFFERS', '-Wno-experimental'],
                  output_basename='growable')
@@ -13042,7 +13076,7 @@ void foo() {}
     'proxy': (['-sPROXY_TO_PTHREAD', '-sEXIT_RUNTIME'], 2),
     'minimal': (['-sMINIMAL_RUNTIME', '-sMODULARIZE', '-sEXPORT_NAME=MyModule'],),
   })
-  def test_pthread_growth(self, cflags, pthread_pool_size = 1):
+  def test_pthread_growth(self, cflags, pthread_pool_size=1):
     if WINDOWS and platform.machine() == 'ARM64':
       # https://github.com/emscripten-core/emscripten/issues/25627
       # TODO: Switch this to a "require Node.js 24" check
@@ -13051,7 +13085,6 @@ void foo() {}
     self.set_setting('PTHREAD_POOL_SIZE', pthread_pool_size)
     if '-sGROWABLE_ARRAYBUFFERS' in cflags:
       self.node_args.append('--experimental-wasm-rab-integration')
-      self.v8_args.append('--experimental-wasm-rab-integration')
       self.require_node_25()
     else:
       self.cflags.append('-Wno-pthreads-mem-growth')
@@ -13128,7 +13161,18 @@ void foo() {}
   def test_unistd_swab(self):
     self.do_run_in_out_file_test('unistd/swab.c')
 
+  @also_with_noderawfs
+  @crossplatform
+  @no_deno('https://github.com/denoland/deno/issues/32995')
   def test_unistd_isatty(self):
+    if '-DNODERAWFS' in self.cflags:
+      # Under NODERAWFS istty reports accurate information about the file descriptors
+      # of the node process. When we run tests we always capture stdout so we never expect
+      # stdout to be a tty.
+      stdin_isatty = os.isatty(0)
+      self.cflags += ['-DEXPECT_STDOUT=0', f'-DEXPECT_STDIN={int(stdin_isatty)}']
+      if WINDOWS:
+        self.skipTest('depends on /dev filesystem')
     self.do_runf('unistd/isatty.c', 'success')
 
   def test_unistd_login(self):
@@ -13141,7 +13185,7 @@ void foo() {}
   @with_all_fs
   def test_unistd_fstatfs(self):
     if '-DNODERAWFS' in self.cflags and WINDOWS:
-      self.skipTest('Cannot look up /dev/stdout on windows')
+      self.skipTest('depends on /dev filesystem')
     self.do_run_in_out_file_test('unistd/fstatfs.c', cflags=['-sASSERTIONS=2'])
 
   @no_windows("test is Linux-specific")
@@ -13370,7 +13414,7 @@ myMethod: 43
     check_for_es6('test_closure.js', False)
 
   def test_node_prefix_transpile(self):
-    self.run_process([EMCC, test_file('hello_world.c'),  '-sEXPORT_ES6'])
+    self.run_process([EMCC, test_file('hello_world.c'), '-sEXPORT_ES6'])
     content = read_file('a.out.js')
     self.assertContained('node:', content)
 
@@ -13496,7 +13540,6 @@ int main() {
   @also_with_minimal_runtime
   def test_shared_memory(self):
     self.do_runf('wasm_worker/shared_memory.c', '0', cflags=[])
-    self.node_args += shared.node_pthread_flags(get_nodejs())
     self.do_runf('wasm_worker/shared_memory.c', '1', cflags=['-sSHARED_MEMORY'])
     self.do_runf('wasm_worker/shared_memory.c', '1', cflags=['-sWASM_WORKERS'])
     self.do_runf('wasm_worker/shared_memory.c', '1', cflags=['-pthread'])
@@ -14095,9 +14138,9 @@ w:0,t:0x[0-9a-fA-F]+: formatted: 42
   def run_wasi_test_suite_test(self, name):
     if not os.path.exists(path_from_root('test/third_party/wasi-test-suite')):
       self.fail('wasi-testsuite not found; run `git submodule update --init`')
-    wasm = path_from_root('test', 'third_party', 'wasi-test-suite', name + '.wasm')
-    with open(path_from_root('test', 'third_party', 'wasi-test-suite', name + '.json')) as f:
-      config = json.load(f)
+    wasm = path_from_root(f'test/third_party/wasi-test-suite/{name}.wasm')
+    json_data = utils.read_file(path_from_root(f'test/third_party/wasi-test-suite/{name}.json'))
+    config = json.loads(json_data)
     exit_code = config.get('exitCode', 0)
     args = config.get('args', [])
     env = config.get('env', [])
@@ -14194,7 +14237,7 @@ w:0,t:0x[0-9a-fA-F]+: formatted: 42
   @only_windows('This test verifies Windows batch script behavior against bug https://github.com/microsoft/terminal/issues/15212')
   @with_env_modify({'PATH': path_from_root() + os.pathsep + os.getenv('PATH')})
   def test_windows_batch_file_dp0_expansion_bug(self):
-    create_file('build_with_quotes.bat',  f'@"emcc" "{test_file("hello_world.c")}"')
+    create_file('build_with_quotes.bat', f'@"emcc" "{test_file("hello_world.c")}"')
     self.run_process(['build_with_quotes.bat'])
 
   @only_windows('Check that directory permissions are properly retrieved on Windows')
@@ -14547,7 +14590,7 @@ addToLibrary({
   def test_embind_optional_val_no_bind(self):
     # Ensure passing std::optional to emscripten::val works if <emscripten/bind.h>
     # was not included in the compilation unit using val.
-    self.run_process([EMXX,'-lembind',
+    self.run_process([EMXX, '-lembind',
                       test_file('embind/test_optional_val_main.cpp'),
                       test_file('embind/test_optional_val_lib.cpp')])
     output = self.run_js('a.out.js')
@@ -15022,7 +15065,7 @@ addToLibrary({
         return {}; // Compiling asynchronously, no exports.
       }''')
     # Test with ASYNCIFY here to ensure that that wasmExports gets set to the wrapped version of the wasm exports.
-    self.do_runf('test_manual_wasm_instantiate.c', cflags=['--pre-js=pre.js','-sASYNCIFY','-DASYNCIFY_ENABLED'])
+    self.do_runf('test_manual_wasm_instantiate.c', cflags=['--pre-js=pre.js', '-sASYNCIFY', '-DASYNCIFY_ENABLED'])
 
   def test_late_module_api_assignment(self):
     # When sync instantiation is used (or when async/await is used in MODULARIZE mode) certain
@@ -15333,8 +15376,7 @@ addToLibrary({
     def has_defined_function(file, func):
       self.run_process([common.WASM_DIS, file, '-o', 'test.wast'])
       pattern = re.compile(r'^\s*\(\s*func\s+\$' + func + r'[\s\(\)]', flags=re.MULTILINE)
-      with open('test.wast') as f:
-        return pattern.search(f.read()) is not None
+      return pattern.search(utils.read_file('test.wast')) is not None
 
     # main.cpp
     self.assertTrue(has_defined_function('test_myapp.wasm', '__original_main'))

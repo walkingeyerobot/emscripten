@@ -326,15 +326,6 @@ def node_exception_flags(nodejs):
   return []
 
 
-def node_pthread_flags(nodejs):
-  node_version = get_node_version(nodejs)
-  # bulk memory and wasm threads were enabled by default in node v16.
-  if node_version and node_version < (16, 0, 0):
-    return ['--experimental-wasm-bulk-memory', '--experimental-wasm-threads']
-  else:
-    return []
-
-
 @memoize
 @ToolchainProfiler.profile()
 def check_node():
@@ -588,7 +579,7 @@ def is_internal_global(name):
 def is_user_export(name):
   if is_internal_global(name):
     return False
-  return name not in ['__asyncify_data', '__asyncify_state', '__indirect_function_table', 'memory'] and not name.startswith(('dynCall_', 'orig$'))
+  return name not in {'__asyncify_data', '__asyncify_state', '__indirect_function_table', 'memory'} and not name.startswith(('dynCall_', 'orig$'))
 
 
 def asmjs_mangle(name):

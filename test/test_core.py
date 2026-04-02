@@ -204,7 +204,7 @@ def requires_x64_cpu(func):
 
   @wraps(func)
   def decorated(self, *args, **kwargs):
-    if platform.machine().lower() not in ['x86_64', 'amd64']:
+    if platform.machine().lower() not in {'x86_64', 'amd64'}:
       return self.skipTest(f'This test requires a native x64 CPU. Current CPU is {platform.machine()}.')
     return func(self, *args, **kwargs)
 
@@ -1457,8 +1457,12 @@ int main(int argc, char **argv) {
     self.do_core_test('test_exceptions_rethrow.cpp')
 
   @with_all_eh_sjlj
-  def test_exceptions_uncaught_count(self):
-    self.do_core_test('test_exceptions_uncaught_count.cpp')
+  def test_exceptions_uncaught_3(self):
+    self.do_core_test('test_exceptions_uncaught_3.cpp')
+
+  @with_all_eh_sjlj
+  def test_exceptions_uncaught_4(self):
+    self.do_core_test('test_exceptions_uncaught_4.cpp')
 
   @with_all_eh_sjlj
   def test_exceptions_resume(self):
@@ -3366,7 +3370,7 @@ Var: 42
     data_exports = get_data_exports('test_dlfcn_self.wasm')
     # Certain exports are removed by wasm-emscripten-finalize, but this
     # tool is not run in all configurations, so ignore these exports.
-    data_exports = [d for d in data_exports if d not in ('__start_em_asm', '__stop_em_asm')]
+    data_exports = [d for d in data_exports if d not in {'__start_em_asm', '__stop_em_asm'}]
     data_exports = '\n'.join(sorted(data_exports)) + '\n'
     self.assertFileContents(test_file('core/test_dlfcn_self.exports'), data_exports)
 
@@ -4021,9 +4025,7 @@ caught outer int: 123
     if getattr(self, 'dylink_reversed', False):
       # Test the reverse case.  There we flip the role of the side module and main module.
       # - We add --no-entry since the side module doesn't have a `main`
-      side_ = side
-      side = main
-      main = side_
+      side, main = main, side
     self.maybe_closure()
     # Same as dylink_test but takes source code as filenames on disc.
     old_args = self.cflags.copy()
@@ -7778,6 +7780,10 @@ void* operator new(size_t size) {
   def test_embind_throw_cpp_exception(self):
     self.do_run_in_out_file_test('embind/test_embind_throw_cpp_exception.cpp', cflags=['-lembind', '-std=c++20'])
 
+  @with_all_eh_sjlj
+  def test_embind_throw_val_uncaught_and_refcount(self):
+    self.do_run_in_out_file_test('embind/test_embind_throw_val_uncaught_and_refcount.cpp', cflags=['-lembind', '-std=c++20'])
+
   @parameterized({
     '': ('DEFAULT', False),
     'all': ('ALL', False),
@@ -7893,7 +7899,7 @@ void* operator new(size_t size) {
     # optimizer can deal with both types.
     map_filename = map_referent + '.map'
 
-    data = json.load(open(map_filename))
+    data = json.loads(utils.read_file(map_filename))
     if hasattr(data, 'file'):
       # the file attribute is optional, but if it is present it needs to refer
       # the output file.
@@ -8185,7 +8191,7 @@ void* operator new(size_t size) {
   # Test that a main with arguments is automatically asyncified.
   @with_asyncify_and_jspi
   def test_async_main(self):
-    create_file('main.c',  r'''
+    create_file('main.c', r'''
 #include <stdio.h>
 #include <emscripten.h>
 int main(int argc, char **argv) {
@@ -8201,7 +8207,7 @@ int main(int argc, char **argv) {
     # needs to flush stdio streams
     self.set_setting('EXIT_RUNTIME')
 
-    create_file('main.c',  r'''
+    create_file('main.c', r'''
 #include <stdio.h>
 #include <emscripten.h>
 void f(void *p) {
@@ -8222,7 +8228,7 @@ int main() {
 
   @with_asyncify_and_jspi
   def test_async_loop(self):
-    create_file('main.c',  r'''
+    create_file('main.c', r'''
 #include <stdio.h>
 #include <emscripten.h>
 int main() {
@@ -9245,16 +9251,17 @@ NODEFS is no longer included by default; build with -lnodefs.js
     self.do_core_test('pthread/emscripten_atomics.c', cflags=['-pthread'])
 
   @requires_pthreads
-  def test_emscripten_futexes(self):
+  def test_emscripten_futex_api_basics(self):
     # This test explicitly checks behavior of passing NULL to emscripten_futex_wake() so
     # need to disable the `-Wno-nonnull` to disabled these warnings.
-    self.do_core_test('pthread/emscripten_futexes.c', cflags=['-pthread', '-Wno-nonnull'])
+    self.do_core_test('pthread/emscripten_futex_api_basics.c', cflags=['-pthread', '-Wno-nonnull'])
 
   @requires_pthreads
   def test_stdio_locking(self):
     self.do_core_test('test_stdio_locking.c', cflags=['-sPTHREAD_POOL_SIZE=2'])
 
   @no_esm_integration('WASM_ESM_INTEGRATION is not compatible with WASM_WORKERS')
+  @no_sanitize('sanitizers do not support WASM_WORKERS')
   def test_stdio_locking_ww(self):
     # Note: do not combine with test_stdio_locking above because we want to test standalone
     # wasm workers here and `@requires_pthreads` would prevent that.
@@ -9691,7 +9698,6 @@ NODEFS is no longer included by default; build with -lnodefs.js
     self.run_process([FILE_PACKAGER, 'test.data', '--preload', 'file1.txt', 'file2.txt', '--from-emcc', '--js-output=script2.js'])
     self.do_runf('test_emscripten_async_load_script.c', cflags=['-sFORCE_FILESYSTEM'])
 
-  @requires_pthreads
   @no_sanitize('sanitizers do not support WASM_WORKERS')
   @also_with_minimal_runtime
   @also_with_modularize
@@ -9702,19 +9708,21 @@ NODEFS is no longer included by default; build with -lnodefs.js
     self.maybe_closure()
     self.do_run_in_out_file_test('wasm_worker/hello_wasm_worker.c', cflags=['-sWASM_WORKERS'])
 
-  @requires_pthreads
   @no_sanitize('sanitizers do not support WASM_WORKERS')
   @no_esm_integration('WASM_ESM_INTEGRATION is not compatible with WASM_WORKERS')
   def test_wasm_worker_malloc(self):
     self.do_run_in_out_file_test('wasm_worker/malloc_wasm_worker.c', cflags=['-sWASM_WORKERS'])
 
-  @requires_pthreads
   @no_sanitize('sanitizers do not support WASM_WORKERS')
   @no_esm_integration('WASM_ESM_INTEGRATION is not compatible with WASM_WORKERS')
   def test_wasm_worker_runtime_debug(self):
     self.do_runf('wasm_worker/hello_wasm_worker.c', 'wasm worker starting ...', cflags=['-sWASM_WORKERS', '-sRUNTIME_DEBUG'])
 
-  @requires_pthreads
+  @no_sanitize('sanitizers do not support WASM_WORKERS')
+  @no_esm_integration('WASM_ESM_INTEGRATION is not compatible with WASM_WORKERS')
+  def test_wasm_worker_futex_wait(self):
+    self.do_runf('wasm_worker/wasm_worker_futex_wait.c', cflags=['-sWASM_WORKERS'])
+
   @no_sanitize('sanitizers do not support WASM_WORKERS')
   @no_esm_integration('WASM_ESM_INTEGRATION is not compatible with WASM_WORKERS')
   def test_wasm_worker_wait_async(self):
