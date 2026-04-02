@@ -291,20 +291,22 @@ def get_wasm_bindgen_exported_symbols(input_files):
       '--print-file-name',
       '--quiet',
   ]
+  if input_files is not None:
+    nm_args += input_files
 
-  result = run_process(nm_args + input_files, stdout=subprocess.PIPE)
+  result = run_process(nm_args, stdout=subprocess.PIPE)
   symbols = []
   for line in result.stdout.splitlines():
     (path, symbol) = line.split()
     # Skip mangled (non-C) symbols
-    if symbol.startswith('_Z') or symbol.startswith('_R') or symbol.startswith('anon.'):
+    if symbol.startswith(('_Z', '_R', 'anon.')):
       continue
     symbols.append(symbol)
 
   return symbols
 
 
-def lld_flags(args, linker_inputs=[]):
+def lld_flags(args, linker_inputs=None):
   # lld doesn't currently support --start-group/--end-group since the
   # semantics are more like the windows linker where there is no need for
   # grouping.
@@ -347,7 +349,7 @@ def lld_flags(args, linker_inputs=[]):
   return args
 
 
-def link_lld(args, target, external_symbols=None, linker_inputs=[]):
+def link_lld(args, target, external_symbols=None, linker_inputs=None):
   # runs lld to link things.
   if not os.path.exists(WASM_LD):
     exit_with_error('linker binary not found in LLVM directory: %s', WASM_LD)
@@ -1354,7 +1356,7 @@ def run_wasm_bindgen(infile, outfile=None, args=[], **kwargs):  # noqa
   # just grab the .wasm file itself.
   all_output_files = os.listdir(bindgen_out_dir)
   new_wasm_file = list(filter(lambda x: x.endswith('.wasm'), all_output_files))[0]
-  if outfile == None:
+  if outfile is None:
     outfile = infile
 
   shutil.copyfile(bindgen_out_dir + new_wasm_file, outfile)

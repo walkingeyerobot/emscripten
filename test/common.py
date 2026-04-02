@@ -1390,8 +1390,7 @@ class RunnerCore(RetryableTestCase, metaclass=RunnerMeta):
         cfunc_ptr();
         return 0;
       }
-    ''' % locals(),
-           'a: loaded\na: b (prev: (null))\na: c (prev: b)\n', cflags=extra_args)
+    ''', 'a: loaded\na: b (prev: (null))\na: c (prev: b)\n', cflags=extra_args)
 
   def do_run(self, src, expected_output=None, force_c=False, **kwargs):
     if 'no_build' in kwargs:
