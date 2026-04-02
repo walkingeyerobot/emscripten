@@ -1343,8 +1343,6 @@ def run_wasm_bindgen(infile, outfile=None, args=[], **kwargs):  # noqa
 
   cmd = config.WASM_BINDGEN + [
     infile,
-    '--target',
-    'emscripten',
     '--keep-lld-exports',
     '--keep-debug',
     '--out-dir',
