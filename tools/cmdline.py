@@ -43,6 +43,10 @@ EXTRA_INCOMING_JS_API = [
   'fetchSettings',
   'logReadFiles',
   'loadSplitModule',
+  'onMalloc',
+  'onRealloc',
+  'onFree',
+  'onSbrkGrow',
 ]
 
 logger = logging.getLogger('args')
@@ -721,11 +725,11 @@ def parse_value(text, expected_type):
 
     # if we succeeded in parsing as json, check some properties of it before returning
     if type(parsed) not in (str, list):
-      raise ValueError(f'settings must be strings or lists (not ${type(parsed)})')
+      raise ValueError(f'settings must be strings or lists (not {type(parsed)})')
     if type(parsed) is list:
       for elem in parsed:
         if type(elem) is not str:
-          raise ValueError(f'list members in settings must be strings (not ${type(elem)})')
+          raise ValueError(f'list members in settings must be strings (not {type(elem)})')
 
     return parsed
 

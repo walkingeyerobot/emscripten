@@ -382,7 +382,7 @@ def get_binaryen_passes(options):
     passes += ['--asyncify']
     if settings.MAIN_MODULE:
       passes += ['--pass-arg=asyncify-export-globals']
-    elif settings.RELOCATABLE:
+    elif settings.SIDE_MODULE:
       passes += ['--pass-arg=asyncify-import-globals']
     if settings.ASSERTIONS:
       passes += ['--pass-arg=asyncify-asserts']
@@ -487,7 +487,7 @@ def get_worker_js_suffix():
 
 def setup_pthreads():
   # pthreads + dynamic linking has certain limitations
-  if settings.MAIN_MODULE or settings.RELOCATABLE:
+  if settings.MAIN_MODULE:
     diagnostics.warning('experimental', 'dynamic linking + pthreads is experimental')
   if settings.ALLOW_MEMORY_GROWTH and not settings.GROWABLE_ARRAYBUFFERS:
     diagnostics.warning('pthreads-mem-growth', '-pthread + ALLOW_MEMORY_GROWTH may run non-wasm code slowly, see https://github.com/WebAssembly/design/issues/1271')
@@ -528,7 +528,7 @@ def set_initial_memory():
   if settings.IMPORTED_MEMORY:
     if user_specified_initial_heap:
       # Some of these could (and should) be implemented.
-      exit_with_error('INITIAL_HEAP is currently not compatible with IMPORTED_MEMORY (which is enabled indirectly via SHARED_MEMORY, RELOCATABLE)')
+      exit_with_error('INITIAL_HEAP is currently not compatible with IMPORTED_MEMORY')
     # The default for imported memory is to fall back to INITIAL_MEMORY.
     settings.INITIAL_HEAP = -1
 
@@ -804,7 +804,6 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
 
   if options.shared and not settings.FAKE_DYLIBS:
     default_setting('SIDE_MODULE', 1)
-    default_setting('RELOCATABLE', 1)
 
   if not settings.FAKE_DYLIBS:
     options.dylibs = get_dylibs(options, linker_args)
@@ -953,7 +952,7 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
       exit_with_error('WASM_ESM_INTEGRATION requires EXPORT_ES6')
     if settings.MODULARIZE != 'instance':
       exit_with_error('WASM_ESM_INTEGRATION requires MODULARIZE=instance')
-    if settings.RELOCATABLE:
+    if settings.MAIN_MODULE:
       exit_with_error('WASM_ESM_INTEGRATION is not compatible with dynamic linking')
     if settings.ASYNCIFY:
       exit_with_error('WASM_ESM_INTEGRATION is not compatible with -sASYNCIFY')
@@ -1150,7 +1149,7 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
     diagnostics.warning('unused-command-line-argument', '--shell-file ignored when not generating html output')
 
   if settings.STRICT:
-    if not settings.MODULARIZE:
+    if not settings.EXPORT_ES6:
       default_setting('STRICT_JS', 1)
     default_setting('DEFAULT_TO_CXX', 0)
     default_setting('IGNORE_MISSING_MAIN', 0)
@@ -1255,8 +1254,7 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
       settings.INCLUDE_FULL_LIBRARY = 1
     # Called from preamble.js once the main module is instantiated.
     settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += ['$loadDylibs']
-    if not settings.RELOCATABLE:
-      settings.REQUIRED_EXPORTS += ['__stack_pointer']
+    settings.REQUIRED_EXPORTS += ['__stack_pointer']
 
   if settings.MAIN_MODULE == 1 or settings.SIDE_MODULE == 1:
     settings.LINKABLE = 1
@@ -1275,7 +1273,7 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
       '$registerTLSInit',
     ]
 
-  if settings.MAIN_MODULE or settings.RELOCATABLE:
+  if settings.MAIN_MODULE:
     settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += [
       '$reportUndefinedSymbols',
       '$relocateExports',
@@ -1296,6 +1294,7 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
                                   'emscripten_stack_get_base',
                                   'emscripten_stack_get_end',
                                   'emscripten_stack_get_current']
+    settings.INCOMING_MODULE_JS_API += ['preRun']
 
   settings.ASYNCIFY_ADD = unmangle_symbols_from_cmdline(settings.ASYNCIFY_ADD)
   settings.ASYNCIFY_REMOVE = unmangle_symbols_from_cmdline(settings.ASYNCIFY_REMOVE)
@@ -1354,15 +1353,11 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
       'emscripten_stack_get_free',
       'emscripten_stack_get_base',
       'emscripten_stack_get_current',
+      # We call this function during startup which caches the stack limits
+      # in wasm globals allowing get_base/get_free to be super fast.
+      # See compiler-rt/stack_limits.S.
+      'emscripten_stack_init',
     ]
-
-    # We call one of these two functions during startup which caches the stack limits
-    # in wasm globals allowing get_base/get_free to be super fast.
-    # See compiler-rt/stack_limits.S.
-    if settings.RELOCATABLE:
-      settings.REQUIRED_EXPORTS += ['emscripten_stack_set_limits']
-    else:
-      settings.REQUIRED_EXPORTS += ['emscripten_stack_init']
 
   if settings.STACK_OVERFLOW_CHECK >= 2:
     settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += ['$setStackLimits']
@@ -1538,9 +1533,6 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
     # Any "pointers" passed to JS will now be i64's, in both modes.
     settings.WASM_BIGINT = 1
 
-  if settings.MEMORY64 and settings.RELOCATABLE:
-    settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE.append('__table_base32')
-
   if settings.WASM_WORKERS or (settings.SHARED_MEMORY and not settings.PTHREADS):
     add_system_js_lib('libwasm_worker.js')
 
@@ -1590,7 +1582,7 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
       'removeRunDependency',
     ]
 
-  if settings.PTHREADS or settings.WASM_WORKERS or settings.RELOCATABLE:
+  if settings.PTHREADS or settings.WASM_WORKERS:
     settings.IMPORTED_MEMORY = 1
 
   set_initial_memory()
@@ -1615,7 +1607,6 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
       not settings.STANDALONE_WASM and \
       not settings.AUTODEBUG and \
       not settings.ASSERTIONS and \
-      not settings.RELOCATABLE and \
       not settings.MAIN_MODULE and \
           settings.MINIFY_WASM_EXPORT_NAMES:
     settings.MINIFY_WASM_IMPORTS_AND_EXPORTS = 1
@@ -1775,6 +1766,7 @@ def phase_linker_setup(options, linker_args):  # noqa: C901, PLR0912, PLR0915
 
   if settings.EMSCRIPTEN_TRACING:
     add_system_js_lib('libtrace.js')
+    settings.INCOMING_MODULE_JS_API += ['onMalloc', 'onRealloc', 'onFree', 'onSbrkGrow']
     if settings.ALLOW_MEMORY_GROWTH:
       settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += ['emscripten_trace_report_memory_layout']
       settings.REQUIRED_EXPORTS += ['emscripten_stack_get_current',
@@ -1963,7 +1955,7 @@ def phase_emscript(in_wasm, wasm_target, js_syms, base_metadata):
 
   # No need to support base64 embedding in wasm2js mode since
   # the module is already in JS format.
-  if settings.SINGLE_FILE and not settings.WASM2JS:
+  if settings.SINGLE_FILE and not settings.SINGLE_FILE_BINARY_ENCODE and not settings.WASM2JS:
     settings.SUPPORT_BASE64_EMBEDDING = 1
     settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE.append('$base64Decode')
 
@@ -2030,6 +2022,8 @@ def run_embind_gen(options, wasm_target, js_syms, extra_settings):
   # TODO Remove lowering when emsdk version of node is >= 24 and just require it.
   if settings.MEMORY64:
     settings.MEMORY64 = 2
+    if settings.MAXIMUM_MEMORY and settings.MAXIMUM_MEMORY > 2147483648:
+      settings.MAXIMUM_MEMORY = 2147483648
   # Source maps haven't been generated yet and aren't needed to run embind_gen.
   settings.LOAD_SOURCE_MAP = 0
   settings.GENERATE_SOURCE_MAP = 0
@@ -2189,6 +2183,15 @@ if (isNode) {{
   shared.check_call(cmd, input=mod)
 
 
+def convert_line_endings_in_file(filename, to_eol):
+  if to_eol == os.linesep:
+    assert os.path.exists(filename)
+    return # No conversion needed
+
+  text = read_file(filename)
+  write_file(filename, text, line_endings=to_eol)
+
+
 @ToolchainProfiler.profile_block('final emitting')
 def phase_final_emitting(options, target, js_target, wasm_target):
   global final_js
@@ -2251,7 +2254,7 @@ def phase_final_emitting(options, target, js_target, wasm_target):
 
   target_basename = unsuffixed_basename(target)
 
-  utils.convert_line_endings_in_file(js_target, options.output_eol)
+  convert_line_endings_in_file(js_target, options.output_eol)
 
   # If we were asked to also generate HTML, do that
   if options.oformat == OFormat.HTML:
@@ -2641,7 +2644,7 @@ def generate_html(target, options, js_target, target_basename, wasm_target):
   if settings.MINIFY_HTML and (settings.OPT_LEVEL >= 1 or settings.SHRINK_LEVEL >= 1):
     minify_html(target)
 
-  utils.convert_line_endings_in_file(target, options.output_eol)
+  convert_line_endings_in_file(target, options.output_eol)
 
 
 def find_library(lib, lib_dirs):
@@ -2743,7 +2746,7 @@ def process_libraries(options, flags):
       continue
 
     static_lib = f'lib{lib}.a'
-    if not settings.RELOCATABLE and not settings.MAIN_MODULE and not find_library(static_lib, options.lib_dirs):
+    if not settings.MAIN_MODULE and not find_library(static_lib, options.lib_dirs):
       # Normally we can rely on the native linker to expand `-l` args.
       # However, emscripten also supports fake `.so` files that are actually
       # just regular object files.  This means we need to support `.so` files even

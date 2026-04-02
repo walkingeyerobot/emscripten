@@ -18,8 +18,27 @@ to browse the changes between the tags.
 
 See docs/process.md for more on how version tagging works.
 
-5.0.2 (in development)
+5.0.3 (in development)
 ----------------------
+- The low level FS.write API now only accepts TypedArray.  The higher level
+  writeFile and createDataFile file still also accept string and Array.
+  (#26413)
+- Warn on usage of the deprecated `EMSCRIPTEN` macro (`__EMSCRIPTEN__` should
+  be used instead). (#26381)
+- The `-sRELOCATABLE` setting was effectively removed (moved to legacy
+  settings).  This setting was deprecated in #25265 and has not been used
+  internally since #25522.
+- When building with `-sWASM_WORKERS` emscripten will no longer include pthread
+  API stub functions.  These stub functions where never designed to work under
+  Wasm Workers, so its safer to error at link time if pthread APIs are used
+  in Wasm Worker-based programs. (#26336)
+- SDL2 port updated to include stub functions for `SDL_hid_init()` and related
+  functions. (#26297)
+- libpng port updated from 1.6.39 to 1.6.55. (#26388)
+- Added sdl3_ttf port. (#24601)
+
+5.0.2 - 02/25/26
+----------------
 - The `NODEJS_CATCH_REJECTION` setting was removed. This setting only has an
   effect when targeting very old versions of node (< 15).  Its trivial to replace
   with a simple `--pre-js` file or with the `--unhandled-rejections=strict`

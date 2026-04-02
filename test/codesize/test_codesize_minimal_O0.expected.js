@@ -1051,6 +1051,7 @@ Module['FS_createPreloadedFile'] = FS.createPreloadedFile;
   'FS_preloadFile',
   'FS_modeStringToFlags',
   'FS_getMode',
+  'FS_fileDataToTypedArray',
   'FS_stdin_getChar',
   'FS_mkdirTree',
   '_setNetworkCallback',
@@ -1238,12 +1239,6 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'FS_createDataFile',
   'FS_forceLoadFile',
   'FS_createLazyFile',
-  'FS_absolutePath',
-  'FS_createFolder',
-  'FS_createLink',
-  'FS_joinPath',
-  'FS_mmapAlloc',
-  'FS_standardizePath',
   'MEMFS',
   'TTY',
   'PIPEFS',
@@ -1283,10 +1278,7 @@ function checkIncomingModuleAPI() {
   ignoredModuleProp('noInitialRun');
   ignoredModuleProp('onAbort');
   ignoredModuleProp('onExit');
-  ignoredModuleProp('onFree');
   ignoredModuleProp('onFullScreen');
-  ignoredModuleProp('onMalloc');
-  ignoredModuleProp('onRealloc');
   ignoredModuleProp('onRuntimeInitialized');
   ignoredModuleProp('postMainLoop');
   ignoredModuleProp('postRun');
@@ -1309,6 +1301,10 @@ function checkIncomingModuleAPI() {
   ignoredModuleProp('fetchSettings');
   ignoredModuleProp('logReadFiles');
   ignoredModuleProp('loadSplitModule');
+  ignoredModuleProp('onMalloc');
+  ignoredModuleProp('onRealloc');
+  ignoredModuleProp('onFree');
+  ignoredModuleProp('onSbrkGrow');
 }
 
 // Imports from the Wasm binary.

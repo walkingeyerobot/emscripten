@@ -101,11 +101,23 @@ def load_previous_test_run_results():
     return json.load(open(PREVIOUS_TEST_RUN_RESULTS_FILE))
   except FileNotFoundError:
     return {}
+  except json.decoder.JSONDecodeError as e:
+    # It can happen on CI that the previous test run log file write is cut in
+    # the middle if the build job is forcibly terminated at a bad moment,
+    # leaving the log file as partial. Since the log file is used to sort tests
+    # to a fast run order, it is not a catastrophic failure -> only log warning.
+    logger.warning(f'Failed to open previous test run results: {e}')
+    return {}
 
 
 def test_file(*path_components):
   """Construct a path relative to the emscripten "tests" directory."""
   return str(Path(TEST_ROOT, *path_components))
+
+
+def copy_asset(filename, target='.'):
+  """Copies file/asset from the test directory into the CWD."""
+  return shutil.copy(test_file(filename), target)
 
 
 def maybe_test_file(filename):
@@ -479,6 +491,8 @@ class RunnerCore(RetryableTestCase, metaclass=RunnerMeta):
     if not nodejs:
       self.skipTest('Test requires nodejs to run')
     if not self.try_require_node_version(25, 0, 0):
+      if os.getenv('EMTEST_AUTOSKIP') == '1':
+        self.skipTest('test requires node v25 and current Node.js version is older than this, with EMTEST_AUTOSKIP being set')
       self.fail('node v25 required to run this test.  Use EMTEST_SKIP_NODE_25 to skip')
 
   def require_engine(self, engine, force=False):

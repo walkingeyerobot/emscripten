@@ -121,7 +121,6 @@ MINIMAL_PIC_TASKS = MINIMAL_TASKS + [
     'libsanitizer_common_rt',
     'libubsan_rt',
     'libwasm_workers-debug',
-    'libwasm_workers-debug-stub',
     'libfetch',
     'libfetch-mt',
     'libwasmfs',
@@ -236,11 +235,10 @@ def main():
     shared.PRINT_SUBPROCS = True
 
   if args.pic:
-    settings.RELOCATABLE = 1
+    settings.MAIN_MODULE = 1
 
   if args.wasm64:
-    settings.MEMORY64 = 2
-    MINIMAL_TASKS[:] = [t for t in MINIMAL_TASKS if 'emmalloc' not in t]
+    settings.MEMORY64 = 1
 
   do_build = args.operation == 'build'
   do_clear = args.operation == 'clear'

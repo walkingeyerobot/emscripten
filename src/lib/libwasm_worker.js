@@ -15,7 +15,7 @@
 #if LINKABLE
 #error "-sLINKABLE is not supported with -sWASM_WORKERS"
 #endif
-#if RELOCATABLE || MAIN_MODULE
+#if MAIN_MODULE
 #error "dynamic linking is not supported with -sWASM_WORKERS"
 #endif
 #if WASM2JS && MODULARIZE
@@ -294,10 +294,6 @@ if (ENVIRONMENT_IS_WASM_WORKER
     if (ENVIRONMENT_IS_NODE) return require('node:os').cpus().length;
 #endif
     return navigator['hardwareConcurrency'];
-  },
-
-  emscripten_atomics_is_lock_free: (width) => {
-    return Atomics.isLockFree(width);
   },
 
   emscripten_lock_async_acquire__deps: ['$polyfillWaitAsync'],

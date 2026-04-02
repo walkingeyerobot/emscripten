@@ -952,15 +952,6 @@ can also vary between browsers.
 
 Default value: false
 
-.. _polyfill_old_math_functions:
-
-POLYFILL_OLD_MATH_FUNCTIONS
-===========================
-
-If set, enables polyfilling for Math.clz32, Math.trunc, Math.imul, Math.fround.
-
-Default value: false
-
 .. _legacy_vm_support:
 
 LEGACY_VM_SUPPORT
@@ -970,7 +961,6 @@ Set this to enable compatibility emulations for old JavaScript engines. This giv
 the highest possible probability of the code working everywhere, even in rare old
 browsers and shell environments. Specifically:
 
-- Add polyfilling for Math.clz32, Math.trunc, Math.imul, Math.fround. (-sPOLYFILL_OLD_MATH_FUNCTIONS)
 - Disable WebAssembly. (Must be paired with -sWASM=0)
 - Adjusts MIN_X_VERSION settings to 0 to include support for all browser versions.
 - Avoid TypedArray.fill, if necessary, in zeroMemory utility function.
@@ -1607,21 +1597,6 @@ the module.
 
 Default value: false
 
-.. _relocatable:
-
-RELOCATABLE
-===========
-
-If set to 1, we emit relocatable code from the LLVM backend; both
-globals and function pointers are all offset (by gb and fp, respectively)
-Automatically set for SIDE_MODULE or MAIN_MODULE.
-
-.. note:: Applicable during both linking and compilation
-
-.. note:: This setting is deprecated
-
-Default value: false
-
 .. _main_module:
 
 MAIN_MODULE
@@ -1733,7 +1708,6 @@ Changes enabled by this:
   - AUTO_JS_LIBRARIES is disabled.
   - AUTO_NATIVE_LIBRARIES is disabled.
   - DEFAULT_TO_CXX is disabled.
-  - USE_GLFW is set to 0 rather than 2 by default.
   - ALLOW_UNIMPLEMENTED_SYSCALLS is disabled.
   - INCOMING_MODULE_JS_API is set to empty by default.
 
@@ -3445,7 +3419,6 @@ these settings please open a bug (or reply to one of the existing bugs).
  - ``LEGALIZE_JS_FFI``: to disable JS type legalization use `-sWASM_BIGINT` or `-sSTANDALONE_WASM`
  - ``ASYNCIFY_EXPORTS``: please use JSPI_EXPORTS instead
  - ``LINKABLE``: under consideration for removal (https://github.com/emscripten-core/emscripten/issues/25262)
- - ``RELOCATABLE``:  under consideration for removal (https://github.com/emscripten-core/emscripten/issues/25262)
 
 .. _legacy-settings:
 
@@ -3534,3 +3507,5 @@ for backwards compatibility with older versions:
  - ``PROXY_TO_WORKER``: No longer supported (Valid values: [0])
  - ``NODEJS_CATCH_EXIT``: No longer supported (Valid values: [0])
  - ``NODEJS_CATCH_REJECTION``: No longer supported (Valid values: [0])
+ - ``POLYFILL_OLD_MATH_FUNCTIONS``: No longer supported (Valid values: [0])
+ - ``RELOCATABLE``: No longer supported (Valid values: [0])
