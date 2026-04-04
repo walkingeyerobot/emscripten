@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-addToLibrary({
-  $wasmfsNodeIsWindows: !!process.platform.match(/^win/),
+var wasmFSNodeLibrary = {
+  $wasmfsNodeIsWindows: "!!process.platform.match(/^win/)",
 
   $wasmfsNodeConvertNodeCode__deps: ['$ERRNO_CODES'],
   $wasmfsNodeConvertNodeCode: (e) => {
@@ -29,8 +29,8 @@ addToLibrary({
   $wasmfsNodeFixStat__deps: ['$wasmfsNodeIsWindows'],
   $wasmfsNodeFixStat: (stat) => {
     if (wasmfsNodeIsWindows) {
-      // Node.js on Windows never represents permission bit 'x', so
-      // propagate read bits to execute bits
+      // Windows does not report the 'x' permission bit, so propagate read
+      // bits to execute bits.
       stat.mode |= (stat.mode & {{{ cDefs.S_IRUGO }}}) >> 2;
     }
     return stat;
@@ -222,5 +222,30 @@ addToLibrary({
       // implicitly return 0
     });
   },
+};
 
-});
+#if !ENVIRONMENT_MAY_BE_NODE
+function makeStub(x, library) {
+  if (isJsOnlySymbol(x) || isDecorator(x)) {
+    return;
+  }
+
+  var t = library[x];
+  if (typeof t == 'string') return;
+  t = t.toString();
+
+  delete library[x + '__i53abi'];
+  delete library[x + '__deps'];
+  library[x] = modifyJSFunction(t, (args, body) => {
+    return `(${args}) => {\n` +
+      (ASSERTIONS ? "abort('attempt to call Node.js backend function without ENVIRONMENT_MAY_BE_NODE');\n" : '') +
+      '}';
+  });
+}
+
+for (const name of Object.keys(wasmFSNodeLibrary)) {
+  makeStub(name, wasmFSNodeLibrary);
+}
+#endif
+
+addToLibrary(wasmFSNodeLibrary);
