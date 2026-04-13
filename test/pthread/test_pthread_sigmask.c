@@ -81,7 +81,7 @@ void *thread_start(void *arg) {
   }
   pthread_mutex_unlock(&lock);
 
-  // Now unlock all signals andwe should recieve SIGTERM here.
+  // Now unlock all signals and we should receive SIGTERM here.
   printf("Unblocking signals\n");
   sigfillset(&set);
   pthread_sigmask(SIG_UNBLOCK, &set, NULL);
@@ -113,16 +113,16 @@ int main() {
     pthread_cond_wait(&pending, &lock);
   }
 
-  // Now the signal is pending on the child thread we block and unblock
-  // all signals on the mains thread, which should be a no-op
+  // Now that the signal is pending on the child thread, we block and unblock
+  // all signals on the mains thread, which should be a no-op.
   // We had a bug where pending signals were not stored in TLS which would
-  // cause this to raise the pending signals erronously here.
+  // cause this to raise the pending signals erroneously here.
   sigset_t set;
   sigfillset(&set);
   pthread_sigmask(SIG_BLOCK, &set, NULL);
   pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 
-  // Signal the child thread to unlock and recieve the signal
+  // Signal the child thread to unlock and receive the signal
   unblock_signal = true;
   pthread_cond_signal(&unblock);
   pthread_mutex_unlock(&lock);
