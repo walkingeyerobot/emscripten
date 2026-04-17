@@ -18,11 +18,17 @@ to browse the changes between the tags.
 
 See docs/process.md for more on how version tagging works.
 
-5.0.6 (in development)
+5.0.7 (in development)
 ----------------------
+- The emscripten_futux_wait API is now documented to explicitly allow spurious
+  wakeups. This was part of an internal change to improve inter-thread
+  communication. (#26659)
+
+5.0.6 - 04/14/26
+----------------
 - The minimum version of node supported by the generated code was bumped from
   v12.22.0 to v18.3.0. (#26604)
-- The DETERMINISIC settings was marked as deprecated (#26653)
+- The DETERMINISTIC settings was marked as deprecated (#26653)
 - Some musl-internal headers are no longer installed into the sysroot include
   directory.  In particular, `syscall_arch.h` no longer exists, but can be
   replaced with `emscripten/syscalls.h`. (#26658)
