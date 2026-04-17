@@ -6,4 +6,3 @@ edition = "2021"
 crate-type = ["staticlib"]
 
 [dependencies]
-wasm-bindgen = { path = "../../../wasm-bindgen" }

@@ -14915,6 +14915,8 @@ addToLibrary({
   @requires_rust
   def test_wasm_bindgen_integration(self):
     copytree(test_file('rust/bindgen_integration'), '.')
+    self.run_process(['cargo', 'install', 'wasm-bindgen-cli', '--root', '.'])
+    self.run_process(['cargo', 'add', 'wasm-bindgen'])
     self.run_process(['cargo', 'build'])
     lib = 'target/wasm32-unknown-emscripten/debug/libbindgen_integration.a'
     self.assertExists(lib)
@@ -14944,7 +14946,8 @@ addToLibrary({
         '-Wno-undefined',
         '-sEXPORTED_FUNCTIONS=' + ','.join(exported_funcs),
     ]
-    self.do_runf('main.cpp', '42', emcc_args=emcc_args)
+    with env_modify({'WASM_BINDGEN': os.path.abspath('bin/wasm-bindgen')}):
+      self.do_runf('main.cpp', '42', emcc_args=emcc_args)
 
   def test_relative_em_cache(self):
     with env_modify({'EM_CACHE': 'foo'}):
