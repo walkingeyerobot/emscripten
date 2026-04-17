@@ -231,7 +231,9 @@ int pthread_cancel(pthread_t thread) {
   return 0;
 }
 
-void pthread_testcancel() {}
+void __pthread_testcancel() {}
+
+weak_alias(__pthread_testcancel, pthread_testcancel);
 
 _Noreturn void __pthread_exit(void* status) {
    exit(0);
@@ -256,6 +258,14 @@ weak_alias(__pthread_detach, thrd_detach);
 
 int pthread_equal(pthread_t t1, pthread_t t2) {
   return t1 == t2;
+}
+
+int pthread_kill(pthread_t thread, int sig) {
+  if (thread != pthread_self()) {
+    return EINVAL;
+  }
+  raise(sig);
+  return 0;
 }
 
 int pthread_mutexattr_init(pthread_mutexattr_t *attr) {

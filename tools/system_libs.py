@@ -905,6 +905,8 @@ class SjLjLibrary(Library):
 
 class MuslInternalLibrary(Library):
   includes = [
+    'system/lib/libc/musl/arch/emscripten',
+    'system/lib/libc/musl/arch/generic',
     'system/lib/libc/musl/src/internal',
     'system/lib/libc/musl/src/include',
     'system/lib/libc/musl/include',
@@ -918,6 +920,7 @@ class MuslInternalLibrary(Library):
     '-Wno-unused-result',  # system call results are often ignored in musl, and in wasi that warns
     '-Wno-bitwise-op-parentheses',
     '-Wno-shift-op-parentheses',
+    '-Wno-constant-conversion',
   ]
 
 
@@ -1302,6 +1305,7 @@ class libc(MuslInternalLibrary,
       libc_files += files_in_path(
         path='system/lib/pthread',
         filenames=[
+          'emscripten_get_next_tid.c',
           'emscripten_thread_state.S',
           'emscripten_thread_primitives.c',
           'emscripten_futex_wait.c',
@@ -1522,7 +1526,7 @@ class libwasm_workers(MuslInternalLibrary, DebugLibrary):
   name = 'libwasm_workers'
   includes = ['system/lib/libc']
   src_dir = 'system/lib/wasm_worker'
-  src_files = ['library_wasm_worker.c', 'wasm_worker_initialize.S']
+  src_files = ['library_wasm_worker.c', 'wasm_worker_initialize.S', 'audio_worklet.c']
 
   def get_cflags(self):
     cflags = super().get_cflags() + ['-sWASM_WORKERS']
@@ -2500,10 +2504,10 @@ def install_system_headers(stamp):
     'system/lib/compiler-rt/include': '',
     'system/lib/libunwind/include': '',
     # Copy the generic arch files first then
-    'system/lib/libc/musl/arch/generic': '',
+    'system/lib/libc/musl/arch/generic/bits': 'bits',
     # Then overlay the emscripten directory on top.
     # This mimics how musl itself installs its headers.
-    'system/lib/libc/musl/arch/emscripten': '',
+    'system/lib/libc/musl/arch/emscripten/bits': 'bits',
     'system/lib/libc/musl/include': '',
     'system/lib/libcxx/include': 'c++/v1',
     'system/lib/libcxxabi/include': 'c++/v1',
