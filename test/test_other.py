@@ -5604,7 +5604,9 @@ int main()
 
   @also_with_standalone_wasm(impure=True)
   def test_time(self):
-    self.do_other_test('test_time.c')
+    if self.get_setting('STANDALONE_WASM'):
+      self.cflags.append('-DSTANDALONE')
+    self.do_other_test('test_time.c', cflags=['-sASSERTIONS=2'])
 
   @parameterized({
     '1': ('EST+05EDT',),
@@ -13502,6 +13504,7 @@ int main() {
     # Ensure that files referenced in Tutorial.rst are buildable
     self.run_process([EMCC, test_file('hello_world_file.cpp')])
 
+  @crossplatform
   @also_with_wasm64
   def test_stdint_limits(self):
     if self.is_wasm64():
