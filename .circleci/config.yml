@@ -71,9 +71,6 @@ commands:
           command: << parameters.python >> -m pip install -r requirements-dev.txt
   install-rust:
     steps:
-      - checkout
-      - pip-install
-      - install-emsdk
       - run:
           name: install rust
           command: |
@@ -81,7 +78,6 @@ commands:
             export PATH=${HOME}/.cargo/bin:${PATH}
             rustup target add wasm32-unknown-emscripten
             cargo install wasm-bindgen-cli
-            echo "WASM_BINDGEN=${HOME}/.cargo/bin/wasm-bindgen" >> ~/emsdk/.emscripten
             echo "export PATH=\"\$HOME/.cargo/bin:\$PATH\"" >> $BASH_ENV
   install-node-version:
     description: "install a specific version of node"
@@ -164,6 +160,7 @@ commands:
             # We use an out-of-tree cache directory so it can be part of the
             # persisted workspace (see below).
             echo "CACHE = os.path.expanduser('~/cache')" >> .emscripten
+            echo "WASM_BINDGEN = os.path.expanduser('~/.cargo/bin/wasm-bindgen')"
             # Refer to commit 0bc3640 if we need to pin V8 version.
             echo "V8_ENGINE = [os.path.expanduser('~/.jsvu/bin/v8')]" >> .emscripten
             echo "JS_ENGINES = [NODE_JS]" >> .emscripten
