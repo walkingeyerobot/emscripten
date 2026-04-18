@@ -139,6 +139,7 @@ commands:
   install-emsdk:
     description: "Install emsdk"
     steps:
+      - install-rust
       - run:
           name: install emsdk
           command: |
