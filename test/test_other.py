@@ -14933,7 +14933,6 @@ addToLibrary({
   @requires_rust
   def test_wasm_bindgen_integration(self):
     copytree(test_file('rust/bindgen_integration'), '.')
-    self.run_process(['cargo', 'install', 'wasm-bindgen-cli', '--root', '.'])
     self.run_process(['cargo', 'add', 'wasm-bindgen'])
     self.run_process(['cargo', 'build'])
     lib = 'target/wasm32-unknown-emscripten/debug/libbindgen_integration.a'
@@ -14945,27 +14944,14 @@ addToLibrary({
         out(Module.rs_add(17, 25));
       };
     ''')
-    exported_funcs = [
-        '___wbindgen_describe_rs_add',
-        '_rs_add',
-        '___externref_drop_slice',
-        '___externref_heap_live_count',
-        '___externref_table_alloc',
-        '___externref_table_dealloc',
-        '___wbindgen_exn_store',
-        '___wbindgen_free',
-        '___wbindgen_malloc',
-        '___wbindgen_realloc']
     emcc_args = [
         lib,
         '-sWASM_BINDGEN',
         '--post-js',
         'post.js',
-        '-Wno-undefined',
-        '-sEXPORTED_FUNCTIONS=' + ','.join(exported_funcs),
     ]
-    with env_modify({'WASM_BINDGEN': os.path.abspath('bin/wasm-bindgen')}):
-      self.do_runf('main.cpp', '42', emcc_args=emcc_args)
+
+    self.do_runf('main.cpp', '42', cflags=emcc_args)
 
   def test_relative_em_cache(self):
     with env_modify({'EM_CACHE': 'foo'}):
