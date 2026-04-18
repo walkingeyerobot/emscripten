@@ -71,6 +71,8 @@ commands:
           command: << parameters.python >> -m pip install -r requirements-dev.txt
   install-rust:
     steps:
+      - checkout
+      - pip-install
       - install-emsdk
       - run:
           name: install rust
