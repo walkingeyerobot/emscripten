@@ -14953,6 +14953,7 @@ addToLibrary({
         '-sWASM_BINDGEN',
         '--post-js',
         'post.js',
+        '-lexports.js',
     ]
 
     self.do_runf('main.cpp', '42', cflags=emcc_args)
