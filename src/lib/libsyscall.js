@@ -552,7 +552,7 @@ var SyscallsLibrary = {
   },
   _msync_js__i53abi: true,
   _msync_js: (addr, len, prot, flags, fd, offset) => {
-    if (isNaN(offset)) return -{{{ cDefs.EOVERFLOW }}};
+    if (isNaN(offset)) return -{{{ cDefs.EFBIG }}};
     SYSCALLS.doMsync(addr, SYSCALLS.getStreamFromFD(fd), len, flags, offset);
     return 0;
   },
@@ -673,14 +673,14 @@ var SyscallsLibrary = {
   },
   __syscall_truncate64__i53abi: true,
   __syscall_truncate64: (path, length) => {
-    if (isNaN(length)) return -{{{ cDefs.EOVERFLOW }}};
+    if (isNaN(length)) return -{{{ cDefs.EFBIG }}};
     path = SYSCALLS.getStr(path);
     FS.truncate(path, length);
     return 0;
   },
   __syscall_ftruncate64__i53abi: true,
   __syscall_ftruncate64: (fd, length) => {
-    if (isNaN(length)) return -{{{ cDefs.EOVERFLOW }}};
+    if (isNaN(length)) return -{{{ cDefs.EFBIG }}};
     FS.ftruncate(fd, length);
     return 0;
   },
@@ -785,7 +785,8 @@ var SyscallsLibrary = {
         return stream.flags;
       case {{{ cDefs.F_SETFL }}}: {
         var arg = syscallGetVarargI();
-        stream.flags |= arg;
+        var mask = {{{ cDefs.O_APPEND | cDefs.O_ASYNC | cDefs.O_DIRECT | cDefs.O_NOATIME | cDefs.O_NONBLOCK }}};
+        stream.flags = (stream.flags & ~mask) | (arg & mask);
         return 0;
       }
       case {{{ cDefs.F_GETLK }}}: {
@@ -998,7 +999,7 @@ var SyscallsLibrary = {
   },
   __syscall_fallocate__i53abi: true,
   __syscall_fallocate: (fd, mode, offset, len) => {
-    if (isNaN(offset) || isNaN(len)) return -{{{ cDefs.EOVERFLOW }}};
+    if (isNaN(offset) || isNaN(len)) return -{{{ cDefs.EFBIG }}};
     if (mode != 0) {
       return -{{{ cDefs.ENOTSUP }}}
     }
@@ -1015,16 +1016,18 @@ var SyscallsLibrary = {
     return 0;
   },
   __syscall_dup3: (fd, newfd, flags) => {
+    if (fd === newfd) return -{{{ cDefs.EINVAL }}};
+    if (flags & ~{{{ cDefs.O_CLOEXEC }}}) return -{{{ cDefs.EINVAL }}};
     var old = SYSCALLS.getStreamFromFD(fd);
-#if ASSERTIONS
-    assert(!flags);
-#endif
-    if (old.fd === newfd) return -{{{ cDefs.EINVAL }}};
     // Check newfd is within range of valid open file descriptors.
     if (newfd < 0 || newfd >= FS.MAX_OPEN_FDS) return -{{{ cDefs.EBADF }}};
     var existing = FS.getStream(newfd);
     if (existing) FS.close(existing);
-    return FS.dupStream(old, newfd).fd;
+    var stream = FS.dupStream(old, newfd);
+    if (flags & {{{ cDefs.O_CLOEXEC }}}) {
+      stream.flags |= {{{ cDefs.O_CLOEXEC }}};
+    }
+    return stream.fd;
   },
 };
 

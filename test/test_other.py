@@ -2617,20 +2617,18 @@ F1 -> ''
   @requires_network
   @crossplatform
   def test_freetype(self):
-    # copy the Liberation Sans Bold truetype file located in the
-    # <emscripten_root>/test/freetype to the compilation folder
-    shutil.copy2(test_file('freetype/LiberationSansBold.ttf'), os.getcwd())
+    copy_asset('freetype/LiberationSansBold.ttf')
     self.cflags += ['--embed-file', 'LiberationSansBold.ttf']
     # the test program will print an ascii representation of a bitmap where the
     # 'w' character has been rendered using the Liberation Sans Bold font.
     # See test_freetype.out
-    self.do_run_in_out_file_test('test_freetype.c', cflags=['-sUSE_FREETYPE'])
     self.do_run_in_out_file_test('test_freetype.c', cflags=['--use-port=freetype'])
 
   @requires_network
-  def test_freetype_with_pthreads(self):
-    # Verify that freetype supports compilation requiring pthreads
-    self.emcc('test_freetype.c', ['-pthread', '-sUSE_FREETYPE', '-o', 'a.out.js'])
+  def test_freetype_pthreads(self):
+    # This test also verifies the `-sUSE_FREETYPE` alternative to --use-port=freetype works.
+    copy_asset('freetype/LiberationSansBold.ttf')
+    self.do_run_in_out_file_test('test_freetype.c', cflags=['--embed-file=LiberationSansBold.ttf', '-pthread', '-sUSE_FREETYPE'])
 
   @requires_network
   def test_icu(self):
@@ -3566,11 +3564,11 @@ More info: https://emscripten.org
               ['-o', 'embind_tsgen.js', '-lembind', '--emit-tsd', 'embind_tsgen.d.ts'] + opts)
 
     # Test that the output compiles with a TS file that uses the definitions.
-    shutil.copyfile(test_file('other/embind_tsgen_main.ts'), 'main.ts')
+    copy_asset('other/embind_tsgen_main.ts', 'main.ts')
     if '-sEXPORT_ES6' in opts:
       # A package file with type=module is needed to enabled ES modules in TSC and
       # also run the output JS file as a module in node.
-      shutil.copyfile(test_file('other/embind_tsgen_package.json'), 'package.json')
+      copy_asset('other/embind_tsgen_package.json', 'package.json')
 
     cmd = shared.get_npm_cmd('tsc') + ['embind_tsgen.d.ts', 'main.ts', '--target', 'es2021'] + tsc_opts
     shared.check_call(cmd)
@@ -7399,10 +7397,10 @@ addToLibrary({
     'O2': (['-O2'], 137000),
     'emmalloc': (['-sMALLOC=emmalloc'], 185000),
     'dlmalloc': (['-sMALLOC=dlmalloc'], 191000),
-    'mimalloc': (['-sMALLOC=mimalloc'], 245000),
+    'mimalloc': (['-sMALLOC=mimalloc'], 255000),
     'emmalloc_O2': (['-sMALLOC=emmalloc', '-O2'], 130000),
     'dlmalloc_O2': (['-sMALLOC=dlmalloc', '-O2'], 137000),
-    'mimalloc_O2': (['-sMALLOC=mimalloc', '-O2'], 181000),
+    'mimalloc_O2': (['-sMALLOC=mimalloc', '-O2'], 193000),
   })
   # This test verifies the output code size of the different -sMALLOC= modes.
   def test_malloc_size(self, args, max_size):
@@ -11701,7 +11699,8 @@ int main(void) {
     # Verify that we're unable to detach or join the proxied main thread
     self.set_setting('PROXY_TO_PTHREAD')
     self.set_setting('EXIT_RUNTIME')
-    self.do_other_test('test_pthread_self_join_detach.c')
+    output = self.do_other_test('test_pthread_self_join_detach.c')
+    self.assertNotContained('user callback triggered after runtime exited', output)
 
   @requires_pthreads
   def test_pthread_asyncify(self):
@@ -12073,7 +12072,7 @@ int main () {
   printf("JS random: %d\n", EM_ASM_INT({ return Math.random() }));
 }
 ''')
-    self.run_process([EMCC, 'src.c', '-sDETERMINISTIC', '-Wno-deprecated'] + self.get_cflags())
+    self.run_process([EMCC, 'src.c', '--pre-js', path_from_root('src/deterministic.js')] + self.get_cflags())
     one = self.run_js('a.out.js')
     # ensure even if the time resolution is 1 second, that if we see the real
     # time we'll see a difference
@@ -13082,6 +13081,10 @@ void foo() {}
       self.cflags.append('-Wno-pthreads-mem-growth')
     self.set_setting('PTHREAD_POOL_SIZE', pthread_pool_size)
     self.do_runf('pthread/test_pthread_memory_growth_mainthread.c', cflags=['-pthread', '-sALLOW_MEMORY_GROWTH', '-sINITIAL_MEMORY=32MB', '-sMAXIMUM_MEMORY=256MB'] + cflags)
+
+  @requires_pthreads
+  def test_phtread_join_interrupted(self):
+    self.do_runf('pthread/test_pthread_join_interrupted.c', cflags=['-pthread', '-sPTHREAD_POOL_SIZE=1'])
 
   @requires_node_25
   def test_growable_arraybuffers(self):
