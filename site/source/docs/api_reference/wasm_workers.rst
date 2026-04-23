@@ -176,8 +176,8 @@ The multithreading synchronization primitives offered in ``emscripten/wasm_worke
 (``emscripten_lock_*``, ``emscripten_semaphore_*``, ``emscripten_condvar_*``) can be freely invoked
 from within pthreads if one so wishes.
 
-Wasm Worker cannot use the pthread API, unless building in hybrid mode
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Wasm Workers cannot use the pthread API, unless building in hybrid mode
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default, Wasm Workers cannot call any pthread APIs (``pthread_mutex_*``,
 ``pthread_cond_*``, ``pthread_self()``, etc.), since they lack the needed
