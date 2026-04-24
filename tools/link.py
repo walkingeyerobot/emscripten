@@ -54,6 +54,7 @@ from .utils import (
   unsuffixed,
   unsuffixed_basename,
   write_file,
+  LinkFlag,
 )
 
 logger = logging.getLogger('link')
@@ -3082,7 +3083,7 @@ def run(options, linker_args):
   settings.limit_settings(None)
 
   if settings.RUNTIME_LINKED_LIBS:
-    linker_args += settings.RUNTIME_LINKED_LIBS
+    linker_args += [LinkFlag(f, False) for f in settings.RUNTIME_LINKED_LIBS]
 
   if not linker_args:
     exit_with_error('no input files')
