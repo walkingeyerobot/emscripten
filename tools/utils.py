@@ -234,6 +234,7 @@ def set_version_globals():
   parts = [int(x) for x in EMSCRIPTEN_VERSION.split('-')[0].split('.')]
   EMSCRIPTEN_VERSION_MAJOR, EMSCRIPTEN_VERSION_MINOR, EMSCRIPTEN_VERSION_TINY = parts
 
+
 @dataclass
 class LinkFlag:
   """Used to represent a linker flag.

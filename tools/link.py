@@ -46,6 +46,7 @@ from .shared import DEBUG, DYLIB_EXTENSIONS, do_replace, get_emscripten_temp_dir
 from .toolchain_profiler import ToolchainProfiler
 from .utils import (
   WINDOWS,
+  LinkFlag,
   delete_file,
   exit_with_error,
   get_file_suffix,
@@ -54,7 +55,6 @@ from .utils import (
   unsuffixed,
   unsuffixed_basename,
   write_file,
-  LinkFlag,
 )
 
 logger = logging.getLogger('link')

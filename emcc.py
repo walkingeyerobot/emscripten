@@ -49,7 +49,7 @@ from tools.response_file import substitute_response_files
 from tools.settings import COMPILE_TIME_SETTINGS, default_setting, settings, user_settings
 from tools.shared import DEBUG, DYLIB_EXTENSIONS, in_temp
 from tools.toolchain_profiler import ToolchainProfiler
-from tools.utils import exit_with_error, get_file_suffix, read_file, unsuffixed_basename, LinkFlag
+from tools.utils import LinkFlag, exit_with_error, get_file_suffix, read_file, unsuffixed_basename
 
 logger = logging.getLogger('emcc')
 
