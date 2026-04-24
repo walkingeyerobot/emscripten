@@ -36,6 +36,17 @@ See docs/process.md for more on how version tagging works.
   explicitly allow for returning EINTR when the wait is interrupted by an async
   operation.  All callers of emscripten_futux_wait are advised to use a loop
   to handle these types of spurious wakeups / interruptions. (#26659, #26735)
+- Attempting to use PTHREAD_PROCESS_SHARED when creating pthread primitives such
+  as locks and condvars will now fail with ENOTSUP. (#26743)
+- When building code with both Wasm Workers and pthreads (hybrid mode) it is now
+  possible to call most of the core pthread APIs (e.g. lock, condvar, etc) from
+  a Wasm Worker.  This mode increases the memory used by each Wasm Worker by
+  ~500 bytes (in the same way that declaring ~500 bytes of TLS data would).
+  (#26757)
+- The `-m64` compiler flag is now honored, and works are an alias for
+  `-sMEMORY64` and/or `--target=wasm64`. (#26765)
+- The filesystem opteration that create new files now honor the global umask,
+  which defaults for 0o222 and can be updated by calling `umask()`. (#50739)
 
 5.0.6 - 04/14/26
 ----------------

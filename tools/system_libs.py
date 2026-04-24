@@ -1269,10 +1269,27 @@ class libc(MuslInternalLibrary,
             'pthread_attr_setscope.c',
             'pthread_attr_setstack.c',
             'pthread_attr_setstacksize.c',
+            'pthread_condattr_destroy.c',
+            'pthread_condattr_init.c',
+            'pthread_condattr_setpshared.c',
+            'pthread_condattr_setclock.c',
+            'pthread_mutexattr_destroy.c',
+            'pthread_mutexattr_init.c',
+            'pthread_mutexattr_setprotocol.c',
+            'pthread_mutexattr_settype.c',
+            'pthread_mutexattr_setpshared.c',
+            'pthread_rwlockattr_destroy.c',
+            'pthread_rwlockattr_init.c',
+            'pthread_rwlockattr_setpshared.c',
             'pthread_getattr_np.c',
             'pthread_getconcurrency.c',
             'pthread_getcpuclockid.c',
             'pthread_getschedparam.c',
+            'pthread_spin_destroy.c',
+            'pthread_spin_init.c',
+            'pthread_spin_lock.c',
+            'pthread_spin_trylock.c',
+            'pthread_spin_unlock.c',
             'pthread_setschedprio.c',
             'pthread_setconcurrency.c',
             'default_attr.c',
@@ -1293,6 +1310,8 @@ class libc(MuslInternalLibrary,
             'mtx_timedlock.c',
             'mtx_trylock.c',
             'mtx_unlock.c',
+            'sem_destroy.c',
+            'sem_init.c',
             'thrd_create.c',
             'thrd_exit.c',
             'thrd_join.c',
@@ -1528,8 +1547,14 @@ class libwasm_workers(MuslInternalLibrary, DebugLibrary):
   src_dir = 'system/lib/wasm_worker'
   src_files = ['library_wasm_worker.c', 'wasm_worker_initialize.S', 'audio_worklet.c']
 
+  def __init__(self, **kwargs):
+    self.is_mt = kwargs.pop('is_mt')
+    super().__init__(**kwargs)
+
   def get_cflags(self):
     cflags = super().get_cflags() + ['-sWASM_WORKERS']
+    if self.is_mt:
+      cflags += ['-pthread']
     if self.is_debug:
       # library_wasm_worker.c contains an assert that a nonnull parameter
       # is no NULL, which llvm now warns is redundant/tautological.
@@ -1541,6 +1566,23 @@ class libwasm_workers(MuslInternalLibrary, DebugLibrary):
     else:
       cflags += ['-Oz']
     return cflags
+
+  def get_base_name(self):
+    name = super().get_base_name()
+    if self.is_mt:
+      name += '-mt'
+    return name
+
+  @classmethod
+  def vary_on(cls):
+    return super().vary_on() + ['is_mt']
+
+  @classmethod
+  def get_default_variation(cls, **kwargs):
+    return super().get_default_variation(
+      is_mt=settings.PTHREADS,
+      **kwargs,
+    )
 
   def can_use(self):
     # see src/library_wasm_worker.js
