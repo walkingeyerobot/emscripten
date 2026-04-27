@@ -1177,7 +1177,6 @@ int main()
       self.set_setting('SUPPORT_LONGJMP', support_longjmp)
       self.do_runf('core/test_exceptions.cpp', assert_returncode=NON_ZERO)
 
-  @no_wasmfs('https://github.com/emscripten-core/emscripten/issues/16816')
   @no_modularize_instance('MODULARIZE=instance is not compatible with MINIMAL_RUNTIME')
   def test_exceptions_minimal_runtime(self):
     self.maybe_closure()
@@ -6469,7 +6468,6 @@ int main(void) {
 
   @no_asan('depends on the specifics of memory size, which for asan we are forced to increase')
   @no_lsan('depends on the specifics of memory size, which for lsan we are forced to increase')
-  @no_wasmfs('wasmfs does some malloc/free during startup, fragmenting the heap, leading to differences later')
   def test_dlmalloc(self):
     if not self.has_changed_setting('INITIAL_MEMORY'):
       self.set_setting('INITIAL_MEMORY', '128mb')
@@ -6770,6 +6768,7 @@ void* operator new(size_t size) {
     self.do_runf('third_party/libiberty/cp-demangle.c', '*d_demangle(char const*, int, unsigned int*)*', args=['_ZL10d_demanglePKciPj'])
 
   @no_asan('issues with freetype itself')
+  @no_strict('autoconfiguring is not compatible with STRICT')
   @needs_make('configure script')
   @is_slow_test
   def test_freetype(self):
@@ -6855,8 +6854,11 @@ void* operator new(size_t size) {
   })
   # Called thus so it runs late in the alphabetical cycle... it is long
   def test_bullet(self, use_cmake):
-    if WINDOWS and not use_cmake:
-      self.skipTest("Windows cannot run configure sh scripts")
+    if not use_cmake:
+      if WINDOWS:
+        self.skipTest('Windows cannot run configure sh scripts')
+      if self.get_setting('STRICT'):
+        self.skipTest('autoconfiguring is not compatible with STRICT')
 
     self.cflags += [
       '-Wno-c++11-narrowing',
@@ -8489,16 +8491,18 @@ Module.onRuntimeInitialized = () => {
     self.set_setting('MAIN_MODULE', 2)
     self.do_core_test('test_hello_world.c')
 
-  # Test that pthread_join works correctly with asyncify.
+  # Include @requires_node_25 explictly here so that this test will be disabled
+  # by EMTEST_SKIP_NODE_25.  Without this, the `requires_pthreads` and `requires_jspi` can
+  # end with conflicting requirements because we often run with both v8 (which satisfies
+  # the `requires_jspi` part have node 22 (which satisfies the `requires_pthreads` part).
+  # FIXME: This should not be needed.
   @requires_node_25
   @requires_pthreads
+  @requires_jspi
   def test_pthread_join_and_asyncify(self):
     # TODO Test with ASYNCIFY=1 https://github.com/emscripten-core/emscripten/issues/17552
-    self.require_jspi()
-    self.do_runf('core/test_pthread_join_and_asyncify.c', 'joining thread!\njoined thread!',
-                 cflags=['-sJSPI',
-                         '-sEXIT_RUNTIME=1',
-                         '-pthread', '-sPROXY_TO_PTHREAD'])
+    self.do_runf('core/test_pthread_join_and_asyncify.c', 'join returned -> 42\n',
+                 cflags=['-sJSPI', '-sEXIT_RUNTIME=1', '-pthread', '-sPROXY_TO_PTHREAD'])
 
   # Test basic wasm2js functionality in all core compilation modes.
   @no_sanitize('no wasm2js support yet in sanitizers')
@@ -8736,7 +8740,6 @@ NODEFS is no longer included by default; build with -lnodefs.js
       print(occurrences)
 
   # Tests that -sMINIMAL_RUNTIME works well in different build modes
-  @no_wasmfs('https://github.com/emscripten-core/emscripten/issues/16816')
   @no_modularize_instance('MODULARIZE=instance is not compatible with MINIMAL_RUNTIME')
   @parameterized({
     '': ([],),
@@ -8767,7 +8770,6 @@ NODEFS is no longer included by default; build with -lnodefs.js
     self.do_run_in_out_file_test('hello_world.c')
 
   # Tests that -sMINIMAL_RUNTIME works well with SAFE_HEAP
-  @no_wasmfs('https://github.com/emscripten-core/emscripten/issues/16816')
   @no_modularize_instance('MODULARIZE=instance is not compatible with MINIMAL_RUNTIME')
   @no_asan('SAFE_HEAP cannot be used with ASan')
   def test_minimal_runtime_safe_heap(self):
@@ -8782,7 +8784,6 @@ NODEFS is no longer included by default; build with -lnodefs.js
     self.do_runf('hello_world_small.c', 'hello')
 
   # Tests global initializer with -sMINIMAL_RUNTIME
-  @no_wasmfs('https://github.com/emscripten-core/emscripten/issues/16816')
   @no_modularize_instance('MODULARIZE=instance is not compatible with MINIMAL_RUNTIME')
   def test_minimal_runtime_global_initializer(self):
     self.set_setting('MINIMAL_RUNTIME')
@@ -9635,22 +9636,27 @@ NODEFS is no longer included by default; build with -lnodefs.js
     self.do_core_test('test_syscall_intercept.c')
 
   @requires_pthreads
+  @no_wasmfs('https://github.com/emscripten-core/emscripten/issues/26736')
   def test_select_blocking(self):
     self.do_runf('core/test_select_blocking.c', cflags=['-pthread', '-sPROXY_TO_PTHREAD=1', '-sEXIT_RUNTIME=1'])
 
   @requires_pthreads
+  @no_wasmfs('https://github.com/emscripten-core/emscripten/issues/26736')
   def test_pselect_blocking(self):
     self.do_runf('core/test_pselect_blocking.c', cflags=['-pthread', '-sPROXY_TO_PTHREAD=1', '-sEXIT_RUNTIME=1'])
 
   @requires_pthreads
+  @no_wasmfs('https://github.com/emscripten-core/emscripten/issues/26736')
   def test_poll_blocking(self):
     self.do_runf('core/test_poll_blocking.c', cflags=['-pthread', '-sPROXY_TO_PTHREAD=1', '-sEXIT_RUNTIME=1'])
 
   @requires_pthreads
+  @no_wasmfs('https://github.com/emscripten-core/emscripten/issues/26736')
   def test_ppoll_blocking(self):
     self.do_runf('core/test_ppoll_blocking.c', cflags=['-pthread', '-sPROXY_TO_PTHREAD=1', '-sEXIT_RUNTIME=1'])
 
   @with_asyncify_and_jspi
+  @no_wasmfs('https://github.com/emscripten-core/emscripten/issues/26736')
   def test_poll_blocking_asyncify(self):
     if self.get_setting('JSPI') and engine_is_v8(self.get_current_js_engine()):
       self.skipTest('test requires setTimeout which is not supported under v8')

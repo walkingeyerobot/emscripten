@@ -2226,8 +2226,6 @@ void *getBindBuffer() {
   def test_gl_subdata(self, args):
     if '-sMIN_WEBGL_VERSION=2' in args and webgl2_disabled():
       self.skipTest('This test requires WebGL2 to be available')
-    if self.is_4gb() and '-sMIN_WEBGL_VERSION=2' in args:
-      self.skipTest('texSubImage2D fails: https://crbug.com/325090165')
     self.reftest('test_gl_subdata.c', 'test_gl_float_tex.png', cflags=['-lGL', '-lglut'] + args)
 
   @requires_graphics_hardware
@@ -2660,7 +2658,6 @@ Module["preRun"] = () => {
 
   # Tests the WebGL 2 glGetBufferSubData() functionality.
   @requires_webgl2
-  @no_4gb('getBufferSubData fails: https://crbug.com/325090165')
   def test_webgl2_get_buffer_sub_data(self):
     self.btest_exit('webgl2_get_buffer_sub_data.c', cflags=['-sMAX_WEBGL_VERSION=2', '-lGL'])
 
@@ -2710,8 +2707,6 @@ Module["preRun"] = () => {
   def test_webgl2_garbage_free_entrypoints(self, args):
     if '-DTEST_WEBGL2=1' in args and webgl2_disabled():
       self.skipTest('This test requires WebGL2 to be available')
-    if args and self.is_4gb():
-      self.skipTest('readPixels fails: https://crbug.com/324992397')
     self.btest_exit('webgl2_garbage_free_entrypoints.c', cflags=args)
 
   @requires_webgl2
@@ -2723,7 +2718,7 @@ Module["preRun"] = () => {
     # tests that if we support WebGL1 and 2, and WebGL2RenderingContext exists,
     # but context creation fails, that we can then manually try to create a
     # WebGL1 context and succeed.
-    self.btest_exit('test_webgl2_runtime_no_context.cpp', cflags=['-sMAX_WEBGL_VERSION=2'])
+    self.btest_exit('test_webgl2_runtime_no_context.c', cflags=['-sMAX_WEBGL_VERSION=2'])
 
   @requires_graphics_hardware
   def test_webgl_context_major_version(self):
@@ -2760,7 +2755,6 @@ Module["preRun"] = () => {
     self.btest_exit('webgl2_draw_packed_triangle.c', cflags=['-lGL', '-sMAX_WEBGL_VERSION=2', '-sGL_ASSERTIONS'])
 
   @requires_graphics_hardware
-  @no_4gb('compressedTexSubImage2D fails: https://crbug.com/324562920')
   def test_webgl2_pbo(self):
     self.btest_exit('webgl2_pbo.c', cflags=['-sMAX_WEBGL_VERSION=2', '-lGL'])
 
@@ -4113,8 +4107,8 @@ Module["preRun"] = () => {
   def test_main_thread_em_asm_blocking(self):
     copy_asset('browser/test_em_asm_blocking.html', 'page.html')
 
-    self.compile_btest('browser/test_em_asm_blocking.cpp', ['-O2', '-o', 'wasm.js', '-pthread', '-sPROXY_TO_PTHREAD', '-sEXIT_RUNTIME'])
-    self.run_browser('page.html', '/report_result?exit:8')
+    self.compile_btest('browser/test_em_asm_blocking.c', ['-O2', '-o', 'wasm.js', '-pthread', '-sPROXY_TO_PTHREAD', '-sEXIT_RUNTIME'])
+    self.run_browser('page.html', '/report_result?exit:0')
 
   # Test that it is possible to send a signal via calling alarm(timeout), which in turn calls to the signal handler set by signal(SIGALRM, func);
   def test_sigalrm(self):
@@ -4229,8 +4223,6 @@ Module["preRun"] = () => {
   # For testing WebGL draft extensions like this, if using chrome as the browser,
   # We might want to append the --enable-webgl-draft-extensions to the EMTEST_BROWSER env arg.
   @requires_graphics_hardware
-  @no_2gb('https://crbug.com/324562920')
-  @no_4gb('https://crbug.com/324562920')
   @parameterized({
     'arrays': (['-DMULTI_DRAW_ARRAYS'],),
     'arrays_instanced': (['-DMULTI_DRAW_ARRAYS_INSTANCED'],),
@@ -4238,7 +4230,7 @@ Module["preRun"] = () => {
     'elements_instanced': (['-DMULTI_DRAW_ELEMENTS_INSTANCED'],),
   })
   def test_webgl_multi_draw(self, args):
-    self.reftest('webgl_multi_draw_test.c', 'webgl_multi_draw.png',
+    self.reftest('test_webgl_multi_draw.c', 'test_webgl_multi_draw.png',
                  cflags=['-lGL', '-sOFFSCREEN_FRAMEBUFFER', '-DEXPLICIT_SWAP'] + args)
 
   # Tests for base_vertex/base_instance extension
@@ -4256,7 +4248,7 @@ Module["preRun"] = () => {
     'drawelements': (1,),
   })
   def test_webgl_draw_base_vertex_base_instance(self, multi_draw, draw_elements):
-    self.reftest('webgl_draw_base_vertex_base_instance_test.c', 'webgl_draw_instanced_base_vertex_base_instance.png',
+    self.reftest('test_webgl_draw_base_vertex_base_instance.c', 'test_webgl_draw_base_vertex_base_instance.png',
                  cflags=['-lGL',
                             '-sMAX_WEBGL_VERSION=2',
                             '-sOFFSCREEN_FRAMEBUFFER',
@@ -4428,7 +4420,7 @@ Module["preRun"] = () => {
   # Preallocating the buffer in this was is asm.js only (wasm needs a Memory).
   @requires_wasm2js
   def test_preallocated_heap(self):
-    self.btest_exit('test_preallocated_heap.cpp', cflags=['-sWASM=0', '-sIMPORTED_MEMORY', '-sINITIAL_MEMORY=16MB', '-sABORTING_MALLOC=0', '--shell-file', test_file('browser/test_preallocated_heap_shell.html')])
+    self.btest_exit('test_preallocated_heap.c', cflags=['-sWASM=0', '-sIMPORTED_MEMORY', '-sINITIAL_MEMORY=16MB', '-sABORTING_MALLOC=0', '--shell-file', test_file('browser/test_preallocated_heap_shell.html')])
 
   # Tests emscripten_fetch() usage to XHR data directly to memory without persisting results to IndexedDB.
   @also_with_wasm2js
@@ -5260,7 +5252,7 @@ Module["preRun"] = () => {
     # test that we can allocate in the 2-4GB range, if we enable growth and
     # set the max appropriately
     self.cflags += ['-O2', '-sALLOW_MEMORY_GROWTH', '-sMAXIMUM_MEMORY=4GB']
-    self.do_run_in_out_file_test('browser/test_4GB.cpp')
+    self.do_run_in_out_file_test('browser/test_4gb.cpp')
 
   # Tests that emmalloc supports up to 4GB Wasm heaps.
   @no_firefox('no 4GB support yet')
@@ -5399,7 +5391,7 @@ Module["preRun"] = () => {
     # test that growth doesn't go beyond 2GB without the max being set for that,
     # and that we can catch an allocation failure exception for that
     self.cflags += ['-O2', '-sALLOW_MEMORY_GROWTH', '-sMAXIMUM_MEMORY=2GB']
-    self.do_run_in_out_file_test('browser/test_2GB_fail.cpp')
+    self.do_run_in_out_file_test('browser/test_2gb_fail.c')
 
   @no_firefox('no 4GB support yet')
   @no_2gb('uses MAXIMUM_MEMORY')
@@ -5415,7 +5407,7 @@ Module["preRun"] = () => {
     # 4GB.
     self.set_setting('MAXIMUM_MEMORY', '4GB')
     self.cflags += ['-O2', '-sALLOW_MEMORY_GROWTH', '-sABORTING_MALLOC=0', '-sASSERTIONS']
-    self.do_run_in_out_file_test('browser/test_4GB_fail.cpp')
+    self.do_run_in_out_file_test('browser/test_4gb_fail.c')
 
   # Tests that Emscripten-compiled applications can be run when a slash in the URL query or fragment of the js file
   def test_browser_run_with_slash_in_query_and_hash(self):
@@ -5738,9 +5730,9 @@ class emrun(RunnerCore):
     proc = subprocess.Popen([EMRUN, '--no-browser', '.', '--port=3333'], stdout=PIPE)
     try:
       if get_browser():
-        print('Starting browser')
-        browser_cmd = shlex.split(get_browser())
-        browser = subprocess.Popen(browser_cmd + ['http://localhost:3333/hello_world.html'])
+        url = 'http://localhost:3333/hello_world.html?argv0'
+        print(f'Starting browser to {url}')
+        BrowserCore.browser_open(url)
         try:
           while True:
             stdout = proc.stdout.read()
@@ -5748,8 +5740,7 @@ class emrun(RunnerCore):
               break
         finally:
           print('Terminating browser')
-          browser.terminate()
-          browser.wait()
+          BrowserCore.browser_terminate()
     finally:
       print('Terminating emrun server')
       proc.terminate()
@@ -5774,8 +5765,14 @@ class emrun(RunnerCore):
     # delete it. Therefore switch away from that directory before launching.
     os.chdir(path_from_root())
 
+    # emrun tests may run in parallel processes, so each test case should use a unique port number
+    # to avoid port address already in use errors.
+    port = '6939'
+    if '-pthread' in self.cflags:
+      port = '6940'
+
     args_base = [EMRUN, '--timeout', '30', '--safe_firefox_profile',
-                 '--kill-exit', '--port', '6939', '--verbose',
+                 '--kill-exit', '--port', port, '--verbose',
                  '--log-stdout', self.in_dir('stdout.txt'),
                  '--log-stderr', self.in_dir('stderr.txt')]
 
@@ -5800,9 +5797,9 @@ class emrun(RunnerCore):
     for args in [
         [],
         ['--port', '0'],
-        ['--private_browsing', '--port', '6941'],
-        ['--dump_out_directory', 'other dir/multiple', '--port', '6942'],
-        ['--dump_out_directory=foo_bar', '--port', '6942'],
+        ['--private_browsing'],
+        ['--dump_out_directory', 'other dir/multiple'],
+        ['--dump_out_directory=foo_bar'],
     ]:
       args = args_base + args + [self.in_dir('test_emrun.html'), '--', '1', '2', '--3', 'escaped space', 'with_underscore']
       print(shlex.join(args))
