@@ -10,6 +10,7 @@ import plistlib
 import queue
 import re
 import shlex
+import shutil
 import subprocess
 import threading
 import time
@@ -35,9 +36,9 @@ from common import (
 )
 
 from tools import feature_matrix, utils
-from tools.feature_matrix import UNSUPPORTED
+from tools.feature_matrix import OLDEST_SUPPORTED_FIREFOX, UNSUPPORTED
 from tools.shared import DEBUG, EMCC, exit_with_error
-from tools.utils import MACOS, WINDOWS, memoize, path_from_root, read_binary
+from tools.utils import LINUX, MACOS, WINDOWS, memoize, path_from_root, read_binary
 
 logger = logging.getLogger('common')
 
@@ -165,8 +166,22 @@ def get_safari_version():
 def get_firefox_version():
   if not is_firefox():
     return UNSUPPORTED
-  exe_path = shlex.split(EMTEST_BROWSER)[0]
+  exe_path = shutil.which(shlex.split(EMTEST_BROWSER)[0])
   ini_path = os.path.join(os.path.dirname(exe_path), '../Resources/platform.ini' if MACOS else 'platform.ini')
+  # On Linux, Firefox system installation uses a specific directory structure,
+  # where platform.ini is not located in same directory as the browser executable.
+  if LINUX and exe_path.startswith('/usr/bin/'):
+    def find_system_firefox_platform_ini():
+      for path in ['/usr/lib/firefox-esr/', '/usr/lib/firefox/']:
+        ini = os.path.join(path, 'platform.ini')
+        if os.path.isfile(ini):
+          return ini
+
+    ini_path = find_system_firefox_platform_ini()
+    if not ini_path:
+      logger.warning(f'Firefox browser detected in {EMTEST_BROWSER}, but could not find Firefox platform.ini to detect Firefox version. Assuming OLDEST_SUPPORTED_FIREFOX={OLDEST_SUPPORTED_FIREFOX}')
+      return OLDEST_SUPPORTED_FIREFOX
+
   # Extract the first numeric part before any dot (e.g. "Milestone=102.15.1" → 102)
   m = re.search(r"^Milestone=(.*)$", read_file(ini_path), re.MULTILINE)
   milestone = m.group(1).strip()
@@ -319,6 +334,11 @@ def configure_test_browser():
 
   if not EMTEST_BROWSER:
     EMTEST_BROWSER = 'google-chrome'
+    if not shutil.which(EMTEST_BROWSER):
+      EMTEST_BROWSER = 'firefox'
+      if not shutil.which(EMTEST_BROWSER):
+        # FIXME: This should really be and error, but this code currently also runs for non-browser tests.
+        EMTEST_BROWSER = 'default-browser-not-found'
 
   if WINDOWS and '"' not in EMTEST_BROWSER and "'" not in EMTEST_BROWSER:
     # On Windows env. vars canonically use backslashes as directory delimiters, e.g.
