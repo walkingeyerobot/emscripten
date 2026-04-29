@@ -246,5 +246,6 @@ class LinkFlag:
 
   A list of these is returned by separate_linker_flags.
   """
+
   value: str
   is_file: int
