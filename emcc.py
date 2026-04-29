@@ -95,20 +95,6 @@ class Mode(Enum):
   COMPILE_AND_LINK = auto()
 
 
-@dataclass
-class LinkFlag:
-  """Used to represent a linker flag.
-
-  The flag value is stored along with a bool that distinguishes input
-  files from non-files.
-
-  A list of these is returned by separate_linker_flags.
-  """
-
-  value: str
-  is_file: int
-
-
 class EmccState:
   def __init__(self, args):
     self.mode = Mode.COMPILE_AND_LINK
