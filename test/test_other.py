@@ -152,7 +152,7 @@ def is_bitcode(filename):
 
 
 def uses_canonical_tmp(func):
-  """Decorator that signals the use of the canonical temp by a test method.
+  """Signal the use of the canonical temp by a test method.
 
   This decorator takes care of cleaning the directory after the
   test to satisfy the leak detector.
@@ -311,7 +311,7 @@ def llvm_nm(file):
 class other(RunnerCore):
   @classmethod
   def setUpClass(cls):
-    """setUpClass included purely so we can verify that is run."""
+    """SetUpClass included purely so we can verify that is run."""
     super().setUpClass()
     cls.doneSetup = True
 
@@ -1325,15 +1325,15 @@ f.close()
   def test_symlink_points_to_bad_suffix(self, flags):
     """Tests compiling a symlink where foobar.c points to foobar.xxx.
 
-    In this case, we should always successfully compile the code."""
+    In this case, we should always successfully compile the code.
+    """
     create_file('foobar.xxx', 'int main(){ return 0; }')
     os.symlink('foobar.xxx', 'foobar.c')
     self.run_process([EMCC, 'foobar.c', '-c', '-o', 'foobar.o'] + flags)
 
   @no_windows('Windows does not support symlinks')
   def test_symlink_has_bad_suffix(self):
-    """Tests that compiling foobar.xxx fails even if it points to foobar.c.
-    """
+    """Tests that compiling foobar.xxx fails even if it points to foobar.c."""
     create_file('foobar.c', 'int main(){ return 0; }')
     os.symlink('foobar.c', 'foobar.xxx')
     expected = ['unknown file type: foobar.xxx', "archive member 'native.o' is neither Wasm object file nor LLVM bitcode"]
@@ -1378,7 +1378,7 @@ f.close()
     self.emcc('a.c', ['-c']) # a.o
     self.emcc('b.c', ['-c']) # b.o
     self.emcc('c.c', ['-c']) # c.o
-    building.emar('cr', 'libLIB.a', ['a.o', 'b.o']) # libLIB.a with a and b
+    self.run_process([EMAR, 'cr', 'libLIB.a', 'a.o', 'b.o']) # libLIB.a with a and b
 
     # a is in the lib AND in an .o, so should be ignored in the lib. We do still need b from the lib though
     self.do_runf('main.c', 'result: 62', cflags=['a.o', 'c.o', '-L.', '-lLIB'])
@@ -1397,7 +1397,7 @@ f.close()
 
     self.emcc('lib.c', ['-c']) # lib.o
     lib_name = 'libLIB.a'
-    building.emar('cr', lib_name, ['lib.o']) # libLIB.a with lib.o
+    self.run_process([EMAR, 'cr', lib_name, 'lib.o']) # libLIB.a with lib.o
 
     def test(compiler, main_name, lib_args, err_expected):
       print(err_expected)
@@ -1581,11 +1581,9 @@ int f() {
 
   @crossplatform
   def test_minimal_runtime_export_all_modularize(self):
-    """This test ensures that MODULARIZE and EXPORT_ALL work simultaneously.
-
-    In addition, it ensures that EXPORT_ALL is honored while using MINIMAL_RUNTIME.
-    """
-
+    # This test ensures that MODULARIZE and EXPORT_ALL work simultaneously.
+    #
+    # In addition, it ensures that EXPORT_ALL is honored while using MINIMAL_RUNTIME.
     create_file('main.c', r'''
       #include <stdio.h>
       #include <emscripten.h>
@@ -3418,10 +3416,12 @@ More info: https://emscripten.org
     'dyncalls': ['-sDYNCALLS=1'],
   })
   def test_embind(self, *extra_args):
-    """This test is actually a large set of smaller JS unittest.  See test/embind/embind.test.js.
-    By default all of them are run.  If you are debugging and want to run just a subset of the
-    JS tests you can use `EMBIND_TESTS=myregex` to run just the matching tests.
-    """
+    # This test is actually a large set of smaller JS unittest.
+    #
+    # See test/embind/embind.test.js.
+    #
+    # By default all of them are run.  If you are debugging and want to run just a subset of the
+    # JS tests you can use `EMBIND_TESTS=myregex` to run just the matching tests.
     if '-sMEMORY64' in extra_args:
       self.require_wasm64()
     self.cflags += [
@@ -8997,7 +8997,7 @@ end
     create_file("hyvää päivää", ' ')
     create_file("snowman freezes covid ☃ 🦠", ' ')
     create_file("tmp.rsp", response_file.create_response_file_contents(("file'1", "file'2", "hyvää päivää", "snowman freezes covid ☃ 🦠")))
-    building.emar('cr', 'libfoo.a', ['@tmp.rsp'])
+    self.run_process([EMAR, 'cr', 'libfoo.a', '@tmp.rsp'])
 
   def test_response_file_bom(self):
     # Modern CMake version create response files in UTF-8 but with BOM
@@ -9656,18 +9656,16 @@ int main() {
     test('bar.wasm.dump')
 
   def get_instr_addr(self, text, filename):
-    '''
-    Runs llvm-objdump to get the address of the first occurrence of the
-    specified line within the given function. llvm-objdump's output format
-    example is as follows:
-    ...
-    00000004 <foo>:
-          ...
-          6: 41 00         i32.const       0
-          ...
-    The addresses here are the offsets to the start of the file. Returns
-    the address string in hexadecimal.
-    '''
+    # Runs llvm-objdump to get the address of the first occurrence of the
+    # specified line within the given function. llvm-objdump's output format
+    # example is as follows:
+    # ...
+    # 00000004 <foo>:
+    #       ...
+    #       6: 41 00         i32.const       0
+    #       ...
+    # The addresses here are the offsets to the start of the file. Returns
+    # the address string in hexadecimal.
     out = self.run_process([common.LLVM_OBJDUMP, '-d', filename],
                            stdout=PIPE).stdout.strip()
     out_lines = out.splitlines()
@@ -9681,9 +9679,7 @@ int main() {
     return '0x' + offset
 
   def test_emsymbolizer_srcloc(self):
-    'Test emsymbolizer use cases that provide src location granularity info'
-    self.skipTest('TODO: Re-enable when https://github.com/llvm/llvm-project/pull/191329 rolls')
-
+    # Test emsymbolizer use cases that provide src location granularity info.
     def check_dwarf_loc_info(address, funcs, locs):
       out = self.run_process(
           [emsymbolizer, '-s', 'dwarf', 'test_dwarf.wasm', address],
@@ -9782,7 +9778,7 @@ int main() {
     do_tests('core/test_dwarf.cpp')
 
   def test_emsymbolizer_functions(self):
-    'Test emsymbolizer use cases that only provide function-granularity info'
+    """Test emsymbolizer use cases that only provide function-granularity info."""
     def check_func_info(filename, address, func):
       out = self.run_process(
         [emsymbolizer, filename, address], stdout=PIPE).stdout
@@ -9821,7 +9817,7 @@ int main() {
     check_symbolmap_info(unreachable_addr, '__original_main')
 
   def test_emsymbolizer_symbol_map_names(self):
-    """Test emsymbolizer with symbol map which contains demangled C++ names"""
+    """Test emsymbolizer with symbol map which contains demangled C++ names."""
     create_file('test_symbol_map.cpp', r'''
       #include <emscripten.h>
       EM_JS(int, out_to_js, (), { return 0; });
@@ -15308,12 +15304,11 @@ addToLibrary({
     self.do_runf('main.cpp', expected, assert_returncode=NON_ZERO)
 
   def test_parsetools_make_removed_fs_assert(self):
-    """
-    This tests that parseTools.mjs `makeRemovedFSAssert()` works as intended,
-    if it creates a stub when a builtin library isn't included, but not when
+    """Test that parseTools.mjs `makeRemovedFSAssert()` works as intended.
+
+    It creates a stub when a builtin library isn't included, but not when
     it is.
     """
-
     removed_fs_assert_content = "IDBFS is no longer included by default"
 
     self.emcc('hello_world.c', ['-o', 'hello_world.js'])

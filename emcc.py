@@ -4,7 +4,8 @@
 # University of Illinois/NCSA Open Source License.  Both these licenses can be
 # found in the LICENSE file.
 
-"""emcc - compiler helper script
+"""\
+emcc - compiler helper script
 =============================
 
 emcc is a drop-in replacement for a compiler like gcc or clang.
@@ -18,7 +19,7 @@ emcc can be influenced by a few environment variables:
                (by default /tmp/emscripten_temp). "2" will save additional emcc-*
                steps, that would normally not be separately produced (so this
                slows down compilation).
-"""
+""" # noqa: D205, D400, D415
 
 import logging
 import os
@@ -92,6 +93,20 @@ class Mode(Enum):
   POST_LINK_ONLY = auto()
   # This is the default mode, in the absence of any flags such as -c, -E, etc
   COMPILE_AND_LINK = auto()
+
+
+@dataclass
+class LinkFlag:
+  """Used to represent a linker flag.
+
+  The flag value is stored along with a bool that distinguishes input
+  files from non-files.
+
+  A list of these is returned by separate_linker_flags.
+  """
+
+  value: str
+  is_file: int
 
 
 class EmccState:
@@ -321,7 +336,6 @@ def separate_linker_flags(newargs):
   - Linker flags include input files and are returned a list of LinkFlag objects.
   - Compiler flags are those to be passed to `clang -c`.
   """
-
   compiler_args = []
   linker_args = []
 
@@ -368,9 +382,7 @@ def separate_linker_flags(newargs):
 
 @ToolchainProfiler.profile_block('setup')
 def phase_setup(state):
-  """Second phase: configure and setup the compiler based on the specified settings and arguments.
-  """
-
+  """Second phase: configure and setup the compiler based on the specified settings and arguments."""
   has_header_inputs = any(get_file_suffix(f) in HEADER_EXTENSIONS for f in options.input_files)
 
   if options.post_link:
